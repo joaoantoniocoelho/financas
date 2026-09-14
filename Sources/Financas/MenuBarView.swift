@@ -44,7 +44,7 @@ struct MenuBarView: View {
                 }
 
                 Divider()
-                quickActions(month)
+                BrandGlassControls { quickActions(month) }
             } else {
                 ContentUnavailableView(
                     "Nenhum mês",
@@ -56,7 +56,7 @@ struct MenuBarView: View {
                 Button("Criar primeiro mês", systemImage: "plus") {
                     store.createNextMonth()
                 }
-                .buttonStyle(.borderedProminent)
+                .brandAction(prominent: true)
                 .frame(maxWidth: .infinity)
             }
 
@@ -65,6 +65,7 @@ struct MenuBarView: View {
         }
         .padding(16)
         .frame(width: 380)
+        .background { BrandBackground() }
         .environment(\.hideAmounts, hideAmounts)
         .sheet(item: $editingExpense) { ExpenseEditor(item: $0) }
         .sheet(item: $editingIncome) { IncomeEditor(item: $0) }
@@ -83,11 +84,9 @@ struct MenuBarView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: "creditcard.fill")
-                .font(.title2)
-                .foregroundStyle(.tint)
+            BrandMark().frame(width: 36, height: 36)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Finanças").font(.headline)
+                Text("Finanças").font(.system(size: 22, weight: .semibold, design: .serif))
                 Text("Visão rápida").font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
@@ -96,7 +95,8 @@ struct MenuBarView: View {
             } label: {
                 Image(systemName: hideAmounts ? "eye.slash" : "eye")
             }
-            .buttonStyle(.plain)
+            .brandAction()
+            .controlSize(.small)
             .help(hideAmounts ? "Mostrar valores" : "Ocultar valores")
         }
     }
@@ -121,15 +121,15 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 4) {
             Label("Saldo atual", systemImage: "wallet.pass")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppBrand.mint)
             Text(AppFormat.money(month.currentBalance, hidden: hideAmounts))
                 .font(.title.bold())
                 .monospacedDigit()
-                .foregroundStyle(month.currentBalance >= 0 ? Color.primary : Color.red)
+                .foregroundStyle(.white)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+        .background(AppBrand.forest, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private var totals: some View {
@@ -209,19 +209,18 @@ struct MenuBarView: View {
             }
         }
         .padding(10)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+        .brandSurface(cornerRadius: 16)
     }
 
     private func chartColor(_ index: Int) -> Color {
-        let colors: [Color] = [.blue, .orange, .green, .purple, .pink, .cyan]
-        return colors[index % colors.count]
+        AppBrand.chartColors[index % AppBrand.chartColors.count]
     }
 
     private func nextSalary(_ salary: NextSalary) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "calendar.badge.clock")
                 .font(.title2)
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppBrand.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Próxima entrada fixa").font(.caption).foregroundStyle(.secondary)
                 Text(salary.days == 0 ? "Hoje" : "Em \(salary.days) \(salary.days == 1 ? "dia" : "dias")")
@@ -246,7 +245,7 @@ struct MenuBarView: View {
             } label: {
                 Label("Nova saída", systemImage: "minus.circle").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .brandAction(prominent: true)
 
             Button {
                 editingIncome = Income(
@@ -257,7 +256,7 @@ struct MenuBarView: View {
             } label: {
                 Label("Nova entrada", systemImage: "plus.circle").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .brandAction()
         }
     }
 
@@ -301,6 +300,6 @@ private struct MenuBarMetric: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+        .brandSurface(cornerRadius: 14)
     }
 }

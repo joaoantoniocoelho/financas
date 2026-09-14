@@ -1,6 +1,29 @@
 import AppKit
 import SwiftUI
 
+enum AppBrand {
+    static let accent = adaptive(light: NSColor(red: 0.035, green: 0.38, blue: 0.26, alpha: 1), dark: NSColor(red: 0.48, green: 0.77, blue: 0.59, alpha: 1))
+    static let evergreen = Color(red: 0.035, green: 0.38, blue: 0.26)
+    static let forest = Color(red: 0.055, green: 0.19, blue: 0.16)
+    static let mint = Color(red: 0.76, green: 0.91, blue: 0.64)
+    static let amber = adaptive(light: NSColor(red: 0.66, green: 0.36, blue: 0.12, alpha: 1), dark: NSColor(red: 0.91, green: 0.68, blue: 0.39, alpha: 1))
+    static let canvas = adaptive(light: NSColor(red: 0.96, green: 0.95, blue: 0.92, alpha: 1), dark: NSColor(red: 0.10, green: 0.13, blue: 0.12, alpha: 1))
+    static let surface = adaptive(light: NSColor(red: 1, green: 0.995, blue: 0.98, alpha: 1), dark: NSColor(red: 0.15, green: 0.18, blue: 0.17, alpha: 1))
+    private static func adaptive(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
+        })
+    }
+    static let chartColors: [Color] = [
+        accent,
+        Color(red: 0.15, green: 0.43, blue: 0.72),
+        Color(red: 0.51, green: 0.32, blue: 0.68),
+        Color(red: 0.84, green: 0.49, blue: 0.12),
+        Color(red: 0.78, green: 0.28, blue: 0.31),
+        Color(red: 0.08, green: 0.53, blue: 0.56)
+    ]
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = AppStore()
@@ -33,6 +56,7 @@ final class MainWindowController: NSObject, ObservableObject, NSWindowDelegate {
                 ContentView()
             }
                 .environmentObject(store)
+                .tint(AppBrand.accent)
                 .frame(minWidth: 960, minHeight: 620)
             let hostingController = NSHostingController(rootView: content)
             let window = NSWindow(contentViewController: hostingController)
@@ -40,6 +64,7 @@ final class MainWindowController: NSObject, ObservableObject, NSWindowDelegate {
             window.setContentSize(NSSize(width: 1120, height: 720))
             window.minSize = NSSize(width: 960, height: 620)
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+            window.toolbarStyle = .unified
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("FinancasMainWindow")
             window.center()
@@ -98,20 +123,16 @@ private struct SplashView: View {
                 endPoint: .bottomTrailing
             )
 
-            VStack(spacing: 24) {
-                Image(nsImage: NSApplication.shared.applicationIconImage)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
+            VStack(spacing: 18) {
+                BrandMark()
                     .frame(width: 116, height: 116)
                     .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
                     .shadow(color: .black.opacity(0.28), radius: 18, y: 10)
                     .scaleEffect(iconScale)
                     .opacity(iconOpacity)
 
-                Text("Finanças")
-                    .font(.system(size: 34, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                Text("Finanças").font(.system(size: 38, weight: .semibold, design: .serif)).foregroundStyle(.white)
+                Text("Mais clareza. Mais possibilidades.").foregroundStyle(AppBrand.mint)
 
                 ProgressView()
                     .controlSize(.small)
@@ -138,8 +159,10 @@ struct FinancasApp: App {
                 appDelegate.showMainWindow()
             }
             .environmentObject(appDelegate.store)
+            .tint(AppBrand.accent)
         } label: {
-            Label("Finanças", systemImage: "creditcard")
+            Image(nsImage: AppBrand.menuBarIcon)
+                .accessibilityLabel("Finanças")
         }
         .menuBarExtraStyle(.window)
     }

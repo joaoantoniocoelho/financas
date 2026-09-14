@@ -10,7 +10,7 @@ struct InvestmentsView: View {
         if let month=store.selectedMonth {
             ScrollView {
                 VStack(alignment:.leading,spacing:18) {
-                    ScreenHeader("Investimentos",subtitle:"Acompanhe seus fundos, aportes e resgates") {
+                    ScreenHeader("Investimentos",subtitle:"Acompanhe seus fundos, aportes e resgates",inset:0) {
                         Button {
                             guard let fund=store.investmentFunds.first else { return }
                             editing=InvestmentMovement(id:0,monthID:month.id,fundID:fund.id,date:.now,kind:.contribution,amount:0,notes:"")
@@ -60,7 +60,7 @@ private struct EmergencyReserveCard:View {
     var body:some View {
         GroupBox {
             HStack(spacing:18) {
-                Image(systemName:"shield.checkered").font(.system(size:34)).foregroundStyle(.green)
+                BrandIcon(symbol: "shield.checkered")
                 VStack(alignment:.leading,spacing:4) {
                     Text("Reserva de emergência").font(.headline)
                     Text(fund?.name ?? "Nenhum fundo definido").font(.caption).foregroundStyle(.secondary)
@@ -94,7 +94,7 @@ private struct FundCard:View {
                 .font(.caption).foregroundStyle(.secondary)
         }
         .padding(14).frame(maxWidth:.infinity,minHeight:120,alignment:.leading)
-        .background(.quaternary.opacity(0.45),in:RoundedRectangle(cornerRadius:12))
+        .background(AppBrand.canvas,in:RoundedRectangle(cornerRadius:16))
     }
 }
 

@@ -23,9 +23,9 @@ struct SettingsView: View {
     var body:some View {
         ScrollView {
             VStack(alignment:.leading,spacing:24) {
-                ScreenHeader("Configurações",subtitle:"Recorrências e dados locais") {
+                ScreenHeader("Configurações",subtitle:"Recorrências e dados locais",inset:0) {
                     Button { editing=RecurringExpense(id:0,description:"",category:"Outros",amount:0,dueDay:nil,paymentMethod:.pix,notes:"",active:true) } label:{Label("Nova recorrência",systemImage:"plus")}
-                }.padding(0)
+                }
                 GroupBox("Gastos recorrentes") {
                     VStack(spacing:0) {
                         ForEach(groupedRecurring) { group in

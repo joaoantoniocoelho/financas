@@ -39,13 +39,9 @@ struct ExpensesView: View {
                         Button { editing = Expense(id:0,monthID:month.id,recurringID:nil,date:.now,description:"",category:"Outros",amount:0,paymentMethod:.pix,status:.pending,competenceYear:nil,competenceMonth:nil,notes:"",isRecurring:false) } label:{Label("Nova saída",systemImage:"plus")}
                     }
                 }
-                HStack {
-                    Label(mode == .fixed ? "Total fixo: \(AppFormat.money(modeExpenses.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))" : "Total de saídas: \(AppFormat.money(modeExpenses.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"sum")
-                    Label("Fatura atual: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))",systemImage:"creditcard")
-                    Label("Pago antecipadamente: \(AppFormat.money(modeExpenses.filter { $0.status == .prepaid }.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"checkmark.circle")
-                    Spacer()
-                    Button("Marcar fatura como paga") { confirmInvoice=true }.disabled(store.totals.invoice == 0)
-                    if mode == .fixed { Button("Sincronizar recorrentes") { store.syncRecurring() }.help("Inclui recorrências ativas que ainda não existem neste mês") }
+                ViewThatFits(in: .horizontal) {
+                    expenseSummary
+                    ScrollView(.horizontal) { expenseSummary.fixedSize(horizontal: true, vertical: false) }
                 }.padding(.horizontal,24).padding(.bottom,12)
                 List {
                     ForEach(groups) { group in
@@ -62,9 +58,20 @@ struct ExpensesView: View {
             .confirmationDialog("Quitar a fatura?",isPresented:$confirmInvoice,titleVisibility:.visible){Button("Marcar lançamentos como pagos"){store.payInvoice()};Button("Cancelar",role:.cancel){}} message:{Text("Todos os gastos em “Na fatura” passarão para “Pago”. Nenhuma nova despesa será criada.")}
         } else { EmptyMonthView() }
     }
+
+    private var expenseSummary: some View {
+                HStack(spacing: 16) {
+                    Label(mode == .fixed ? "Total fixo: \(AppFormat.money(modeExpenses.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))" : "Total de saídas: \(AppFormat.money(modeExpenses.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"sum")
+                    Label("Fatura atual: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))",systemImage:"creditcard")
+                    Label("Pago antecipadamente: \(AppFormat.money(modeExpenses.filter { $0.status == .prepaid }.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"checkmark.circle")
+                    Spacer()
+                    Button("Marcar fatura como paga") { confirmInvoice=true }.disabled(store.totals.invoice == 0)
+                    if mode == .fixed { Button("Sincronizar recorrentes") { store.syncRecurring() }.help("Inclui recorrências ativas que ainda não existem neste mês") }
+                }.font(.caption).padding(16).brandSurface(cornerRadius: 14)
+    }
     private func expenseRow(_ item:Expense,showCategory:Bool)->some View {
         HStack {
-            Image(systemName:item.isRecurring ? "repeat" : "cart").foregroundStyle(.secondary).frame(width:22)
+            BrandIcon(symbol: item.isRecurring ? "repeat" : "cart", color: AppBrand.amber)
             VStack(alignment:.leading){Text(item.description).fontWeight(.medium);Text("\(showCategory ? item.category + " • " : "")\(item.paymentMethod.rawValue)\(competence(item))\(item.includedInInitialBalance ? " • já incluído no saldo inicial" : "")").font(.caption).foregroundStyle(.secondary)}
             Spacer(); Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit(); StatusBadge(item.status.rawValue,positive:[.paid,.prepaid].contains(item.status))
             Menu {
@@ -72,7 +79,7 @@ struct ExpensesView: View {
                 if [.paid,.prepaid].contains(item.status) && !item.includedInInitialBalance { Button("Já estava no saldo inicial") { var copy=item;copy.includedInInitialBalance=true;store.save(copy) } }
                 Divider();Button(item.isRecurring ? "Editar somente neste mês" : "Editar"){editing=item};Button(item.isRecurring ? "Excluir somente deste mês" : "Excluir",role:.destructive){store.delete(item)}
             } label:{Image(systemName:"ellipsis.circle")}
-        }.contentShape(Rectangle()).onTapGesture{editing=item}
+        }.padding(.vertical,10).contentShape(Rectangle()).onTapGesture{editing=item}
     }
     private func competence(_ item:Expense)->String { guard let y=item.competenceYear,let m=item.competenceMonth else{return ""};return " • competência \(String(format:"%02d",m))/\(y)" }
 }

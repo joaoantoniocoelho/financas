@@ -23,9 +23,33 @@ struct ContentView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(AppSection.allCases, selection: $section) { item in
-                Label(item.rawValue, systemImage: item.icon).tag(item)
-            }.navigationTitle("Finanças")
+            VStack(alignment: .leading, spacing: 28) {
+                HStack(spacing: 12) {
+                    BrandMark().frame(width: 42, height: 42)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Finanças").font(.system(size: 24, weight: .semibold, design: .serif))
+                        Text("Seu dinheiro, com clareza.").font(.caption).foregroundStyle(.secondary)
+                    }
+                }.padding(.horizontal, 20).padding(.top, 28)
+                List(selection: $section) {
+                    Section("SEU MÊS") {
+                        ForEach(AppSection.allCases.filter { $0 != .settings }) { item in
+                            Label(item.rawValue, systemImage: item.icon)
+                                .font(.system(size: 14, weight: .medium))
+                                .padding(.vertical, 9).tag(item)
+                        }
+                    }
+                    Section {
+                        Label(AppSection.settings.rawValue, systemImage: AppSection.settings.icon)
+                            .padding(.vertical, 9).tag(AppSection.settings)
+                    }
+                }.listStyle(.sidebar).scrollContentBackground(.hidden)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Um mês de cada vez.").font(.system(size: 18, design: .serif))
+                    Text("Espaço para planejar o que vem depois.").font(.caption).foregroundStyle(.secondary)
+                }.padding(22)
+            }
+            .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
             Group {
                 switch section ?? .summary {
@@ -37,6 +61,10 @@ struct ContentView: View {
                 case .settings: SettingsView()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background { BrandBackground() }
+            .groupBoxStyle(BrandGroupBoxStyle())
+            .scrollContentBackground(.hidden)
             .toolbar { MonthToolbar() }
         }
         .environment(\.hideAmounts, hideAmounts)
@@ -46,20 +74,26 @@ struct ContentView: View {
     }
 }
 
-struct MonthToolbar: View {
+struct MonthToolbar: ToolbarContent {
     @EnvironmentObject private var store: AppStore
     @AppStorage("hideAmounts") private var hideAmounts = false
-    var body: some View {
-        Button {
-            hideAmounts.toggle()
-        } label: {
-            Label(hideAmounts ? "Mostrar valores" : "Ocultar valores", systemImage: hideAmounts ? "eye.slash" : "eye")
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .automatic) {
+            Button {
+                hideAmounts.toggle()
+            } label: {
+                Label(hideAmounts ? "Mostrar valores" : "Ocultar valores", systemImage: hideAmounts ? "eye.slash" : "eye")
+            }
+            .help(hideAmounts ? "Mostrar valores" : "Ocultar valores")
         }
-        .help(hideAmounts ? "Mostrar valores" : "Ocultar valores")
-        Picker("Mês", selection: Binding(get: { store.selectedMonthID ?? 0 }, set: store.select)) {
-            ForEach(store.months) { Text($0.title).tag($0.id) }
-        }.frame(width: 180)
-        Button { store.createNextMonth() } label: { Label("Novo mês", systemImage: "plus") }
+        ToolbarItem(placement: .automatic) {
+            Picker("Mês", selection: Binding(get: { store.selectedMonthID ?? 0 }, set: store.select)) {
+                ForEach(store.months) { Text($0.title).tag($0.id) }
+            }.frame(width: 180)
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button { store.createNextMonth() } label: { Label("Novo mês", systemImage: "plus") }
+        }
     }
 }
 
@@ -72,7 +106,7 @@ struct DashboardView: View {
     @Environment(\.hideAmounts) private var hideAmounts
     @State private var editingBalance = false
     @State private var hoveredCategory:String?
-    private let columns = [GridItem(.adaptive(minimum: 250), spacing: 12)]
+    private let columns = [GridItem(.adaptive(minimum: 210), spacing: 16)]
 
     private struct CategorySpending:Identifiable {
         let category:String
@@ -96,14 +130,29 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack {
                         VStack(alignment: .leading) {
-                            Text(month.title).font(.largeTitle.bold())
-                            Text("Saldo inicial \(AppFormat.money(month.initialBalance, hidden: hideAmounts))").foregroundStyle(.secondary)
+                            Text("VISÃO GERAL").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(.secondary)
+                            Text(month.title).font(.system(size: 34, weight: .medium, design: .serif))
+                            Text("Seu mês em perspectiva.").foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Editar saldos") { editingBalance=true }
+                        Button("Editar saldos") { editingBalance=true }.brandAction().controlSize(.large)
                     }
-                    LazyVGrid(columns:columns,spacing:12) {
-                        MetricCard("Saldo atual", month.currentBalance, "wallet.bifold", color: month.currentBalance >= 0 ? .green : .red, size: .featured)
+                    HStack(alignment: .center, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Label("SALDO ATUAL", systemImage: "wallet.bifold").font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(AppBrand.mint)
+                            Text(AppFormat.money(month.currentBalance, hidden: hideAmounts))
+                                .font(.system(size: 44, weight: .medium, design: .rounded)).monospacedDigit()
+                                .contentTransition(.numericText()).lineLimit(1).minimumScaleFactor(0.65)
+                            Text("Saldo inicial de \(AppFormat.money(month.initialBalance, hidden: hideAmounts))")
+                                .font(.subheadline).foregroundStyle(.white.opacity(0.72))
+                        }
+                        Spacer(minLength: 0)
+                        BrandMark().frame(width: 100, height: 100)
+                    }
+                    .padding(28).frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.white)
+                    .background(LinearGradient(colors: [AppBrand.forest, AppBrand.evergreen], startPoint: .leading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 24))
+                    LazyVGrid(columns:columns,spacing:16) {
                         MetricCard("Pendentes", store.totals.pending, "clock", color: .orange, size: .featured)
                         MetricCard("Na fatura", store.totals.invoice, "creditcard", color: .orange, size: .featured)
                         MetricCard("Salário previsto", store.totals.fixedExpected, "calendar", size:.featured)
@@ -129,7 +178,7 @@ struct DashboardView: View {
                                     Chart(spendingByCategory) { item in
                                         SectorMark(
                                             angle:.value("Valor",item.total),
-                                            innerRadius:.ratio(0.48),
+                                            innerRadius:.ratio(0.64),
                                             outerRadius:.ratio(hoveredCategory == item.category ? 1 : 0.94),
                                             angularInset:1.5
                                         )
@@ -143,7 +192,11 @@ struct DashboardView: View {
                                             }
                                         }
                                     }
-                                    .chartLegend(position:.trailing,alignment:.center,spacing:8)
+                                    .chartLegend(position:.bottom,alignment:.leading,spacing:8)
+                                    .chartForegroundStyleScale(
+                                        domain: spendingByCategory.map(\.category),
+                                        range: spendingByCategory.indices.map { AppBrand.chartColors[$0 % AppBrand.chartColors.count] }
+                                    )
                                     .chartOverlay { proxy in
                                         GeometryReader { geometry in
                                             Rectangle().fill(.clear).contentShape(Rectangle())
@@ -164,7 +217,7 @@ struct DashboardView: View {
                                                 }
                                         }
                                     }
-                                    .frame(minWidth:420,minHeight:300)
+                                    .frame(minWidth:240,minHeight:300)
                                     GroupBox {
                                         if let selected=spendingByCategory.first(where:{$0.category == hoveredCategory}) {
                                             VStack(alignment:.leading,spacing:7) {
@@ -193,7 +246,7 @@ struct DashboardView: View {
                                         } else {
                                             ContentUnavailableView("Passe o mouse sobre uma fatia",systemImage:"cursorarrow.motionlines",description:Text("Veja os lançamentos que compõem cada categoria."))
                                         }
-                                    }.frame(width:310,height:260)
+                                    }.frame(width:230,height:260)
                                 }
                             }.padding(8)
                         }
@@ -217,14 +270,14 @@ struct NextSalaryCard:View {
     @Environment(\.hideAmounts) private var hideAmounts
     let salary:NextSalary?
     var body:some View {
-        GroupBox {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment:.top) {
-                Image(systemName:"calendar.badge.clock").foregroundStyle(.blue).font(.largeTitle)
+                BrandIcon(symbol: "calendar.badge.clock")
                 VStack(alignment:.leading,spacing:6) {
                     Text("Próximo salário").font(.subheadline).foregroundStyle(.secondary)
                     if let salary {
                         Text(salary.days == 0 ? "Hoje" : "Em \(salary.days) \(salary.days == 1 ? "dia" : "dias")")
-                            .font(.title.bold())
+                            .font(.system(size: 25, weight: .semibold, design: .rounded))
                         Text("\(AppFormat.money(salary.amount,hidden:hideAmounts)) • \(AppFormat.date.string(from:salary.date))")
                             .font(.subheadline).foregroundStyle(.secondary)
                     } else {
@@ -232,8 +285,9 @@ struct NextSalaryCard:View {
                     }
                 }
                 Spacer()
-            }.padding(.vertical,10).frame(maxWidth:.infinity,alignment:.leading)
-        }.frame(maxWidth:.infinity, minHeight:150, maxHeight:150)
+            }.frame(maxWidth:.infinity,alignment:.leading)
+        }.padding(20).frame(maxWidth:.infinity, minHeight:160, maxHeight:160)
+            .brandSurface()
     }
 }
 
@@ -245,22 +299,22 @@ struct MetricCard: View {
         self.title=title; self.value=value; self.icon=icon; self.color=color; self.size=size; self.caption=caption
     }
     var body: some View {
-        GroupBox {
-            HStack(alignment: size == .featured ? .top : .center) {
-                Image(systemName:icon).foregroundStyle(color).font(size == .featured ? .largeTitle : .title2)
-                VStack(alignment:.leading, spacing: size == .featured ? 6 : 2) {
-                    Text(title).font(size == .featured ? .subheadline : .caption).foregroundStyle(.secondary)
-                    Text(AppFormat.money(value, hidden: hideAmounts)).font(size == .featured ? .title.bold() : .title3.bold()).monospacedDigit()
-                    if let caption {
-                        Text(caption).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    }
-                }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(title).font(.subheadline).foregroundStyle(.secondary)
                 Spacer()
+                BrandIcon(symbol: icon, color: color)
             }
-            .padding(.vertical, size == .featured ? 10 : 5)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(AppFormat.money(value, hidden: hideAmounts))
+                .font(.system(size: size == .featured ? 27 : 22, weight: .semibold, design: .rounded))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+            if let caption {
+                Text(caption).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
+        .padding(20)
+        .frame(maxWidth: .infinity, minHeight: 160, maxHeight: 160, alignment: .topLeading)
+        .brandSurface()
     }
 }
 

@@ -22,7 +22,8 @@ struct IncomesView: View {
     }
 
     private func row(_ item: Income) -> some View {
-        HStack {
+        HStack(spacing: 14) {
+            BrandIcon(symbol: item.isFixed ? "calendar" : "arrow.down.left")
             VStack(alignment: .leading) {
                 Text(item.description).fontWeight(.medium)
                 Text(item.isFixed ? "Previsto dia \(item.expectedDay.map(String.init) ?? "—")" : "\(item.category) • \(item.date.map(AppFormat.date.string) ?? "Sem data")").font(.caption).foregroundStyle(.secondary)
@@ -31,7 +32,7 @@ struct IncomesView: View {
             Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit()
             StatusBadge(item.status.rawValue, positive: item.status == .received)
             Menu { if item.status != .received { Button("Marcar como recebido") { var copy=item;copy.status = .received;if copy.date == nil { copy.date = .now };store.save(copy) } }; Button("Editar") { editing=item }; Button("Excluir", role:.destructive) { store.delete(item) } } label: { Image(systemName:"ellipsis.circle") }
-        }.contentShape(Rectangle()).onTapGesture { editing=item }
+        }.padding(.vertical, 10).contentShape(Rectangle()).onTapGesture { editing=item }
     }
 }
 
@@ -58,18 +59,37 @@ struct IncomeEditor: View {
 
 struct ScreenHeader<Actions: View>: View {
     let title:String; let subtitle:String; @ViewBuilder let actions:Actions
-    init(_ title:String,subtitle:String,@ViewBuilder actions:()->Actions){self.title=title;self.subtitle=subtitle;self.actions=actions()}
-    var body:some View { HStack { VStack(alignment:.leading){Text(title).font(.largeTitle.bold());Text(subtitle).foregroundStyle(.secondary)};Spacer();actions }.padding(24) }
+    let inset: CGFloat
+    init(_ title:String,subtitle:String,inset:CGFloat=24,@ViewBuilder actions:()->Actions){self.title=title;self.subtitle=subtitle;self.inset=inset;self.actions=actions()}
+    var body:some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.system(size: 34, weight: .medium, design: .serif))
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+            }
+            BrandGlassControls {
+                HStack(spacing: 12) { actions }.controlSize(.large).brandAction(prominent: true)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(inset)
+    }
 }
 
 struct EditorButtons: View {
     @Environment(\.dismiss) private var dismiss
     let saveEnabled:Bool; let save:()->Void
-    var body:some View { HStack { Spacer();Button("Cancelar"){dismiss()};Button("Salvar",action:save).keyboardShortcut(.defaultAction).disabled(!saveEnabled) }.padding(.top,8) }
+    var body:some View {
+        BrandGlassControls(spacing: 0) {
+            HStack(spacing: 16) {
+                Spacer()
+                Button("Cancelar") { dismiss() }.brandAction()
+                Button("Salvar", action: save).keyboardShortcut(.defaultAction).disabled(!saveEnabled).brandAction(prominent: true)
+            }
+        }.padding(.top, 8)
+    }
 }
 
 struct StatusBadge: View {
     let text:String; let positive:Bool
     init(_ text:String,positive:Bool=false){self.text=text;self.positive=positive}
-    var body:some View { Text(text).font(.caption).padding(.horizontal,8).padding(.vertical,4).background((positive ? Color.green : Color.orange).opacity(0.14),in:Capsule()).foregroundStyle(positive ? .green : .orange).frame(width:110) }
+    var body:some View { Text(text).font(.caption.weight(.medium)).padding(.horizontal,10).padding(.vertical,5).background((positive ? AppBrand.accent : AppBrand.amber).opacity(0.12),in:Capsule()).foregroundStyle(positive ? AppBrand.accent : AppBrand.amber).frame(width:110) }
 }
