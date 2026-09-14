@@ -16,6 +16,12 @@ The summary shows current balance, pending charges, the invoice, expected salary
 
 Use the eye button in the toolbar, or **⌘⇧H**, to hide amounts.
 
+## Menu bar
+
+The app runs primarily from the macOS menu bar and does not occupy space in the Dock. Click the card icon to see the current balance, pending expenses, card invoice, and next fixed income. The panel also provides quick actions for a new expense or income.
+
+Use **Abrir Finanças** in the panel when you need the complete dashboard. Closing that window keeps the menu bar app running; use **Encerrar Finanças** in the panel menu to quit it completely.
+
 ## Requirements
 
 - macOS 14 or later

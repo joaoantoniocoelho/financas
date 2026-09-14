@@ -107,6 +107,14 @@ struct DashboardView: View {
                         MetricCard("Pendentes", store.totals.pending, "clock", color: .orange, size: .featured)
                         MetricCard("Na fatura", store.totals.invoice, "creditcard", color: .orange, size: .featured)
                         MetricCard("Salário previsto", store.totals.fixedExpected, "calendar", size:.featured)
+                        MetricCard(
+                            "Investido no mês",
+                            store.totals.investmentsActual,
+                            "chart.line.uptrend.xyaxis",
+                            color: .purple,
+                            size: .featured,
+                            caption: "de \(AppFormat.money(store.totals.investmentsPlanned, hidden: hideAmounts)) planejados"
+                        )
                         NextSalaryCard(salary:store.nextSalary())
                     }
                     GroupBox("Gastos por categoria") {
@@ -225,7 +233,7 @@ struct NextSalaryCard:View {
                 }
                 Spacer()
             }.padding(.vertical,10).frame(maxWidth:.infinity,alignment:.leading)
-        }.frame(maxWidth:.infinity)
+        }.frame(maxWidth:.infinity, minHeight:150, maxHeight:150)
     }
 }
 
@@ -252,7 +260,7 @@ struct MetricCard: View {
             .padding(.vertical, size == .featured ? 10 : 5)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
     }
 }
 

@@ -80,7 +80,7 @@ struct ExpensesView: View {
 struct ExpenseEditor: View {
     @EnvironmentObject private var store:AppStore; @Environment(\.dismiss) private var dismiss
     @State var item:Expense; @State private var hasCompetence:Bool
-    private let categories=["Moradia","Carro","Saúde","Educação","Assinaturas","SaaS / Projetos","Alimentação fora","Lazer","Compras","Transporte/Uber","Pets","Presentes","Viagens","Outros"]
+    private let categories=["Moradia","Carro","Saúde","Educação","Assinaturas","SaaS / Projetos","Mercado","Alimentação fora","Lazer","Compras","Transporte/Uber","Pets","Presentes","Viagens","Outros"]
     init(item:Expense){_item=State(initialValue:item);_hasCompetence=State(initialValue:item.competenceMonth != nil)}
     var body:some View {
         Form {

@@ -463,13 +463,10 @@ final class Database {
     private func investmentBalanceRecord(id:Int64)throws->(Int64,Double) { var value:(Int64,Double)=(0,0);try rows("SELECT month_id,actual_amount,status,balance_applied FROM investments WHERE id=?",bindings:[id]){let applied=sqlite3_column_int($0,3) != 0;value=(sqlite3_column_int64($0,0),applied && text($0,2)==InvestmentStatus.completed.rawValue ? -sqlite3_column_double($0,1):0)};return value }
 
     private func seedIfNeeded() throws {
-        var count = 0
-        try rows("SELECT COUNT(*) FROM categories") { count = Int(sqlite3_column_int($0, 0)) }
-        guard count == 0 else { return }
         try execute("BEGIN")
         do {
             for name in ["Moradia","Carro","Saúde","Educação","Assinaturas","SaaS / Projetos","Lazer","Outros"] { try execute("INSERT OR IGNORE INTO categories(name,kind) VALUES(?,'recurring')", bindings: [name]) }
-            for name in ["Alimentação fora","Lazer","Compras","Transporte/Uber","Pets","Presentes","Viagens","Outros"] { try execute("INSERT OR IGNORE INTO categories(name,kind) VALUES(?,'variable')", bindings: [name]) }
+            for name in ["Mercado","Alimentação fora","Lazer","Compras","Transporte/Uber","Pets","Presentes","Viagens","Outros"] { try execute("INSERT OR IGNORE INTO categories(name,kind) VALUES(?,'variable')", bindings: [name]) }
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
