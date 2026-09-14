@@ -1,109 +1,109 @@
 <div align="center">
-  <img src="Resources/AppIcon.png" alt="Ícone do Finanças: seta ascendente em um círculo aberto" width="128" height="128">
+  <img src="Resources/AppIcon.png" alt="Finanças icon: an upward arrow inside an open circle" width="128" height="128">
   <h1>Finanças</h1>
-  <p><strong>Seu dinheiro, com clareza.</strong></p>
-  <p>Um app nativo para organizar seu mês, acompanhar gastos e planejar o que vem depois.<br>Sem conta, sem servidor. Seus dados ficam no seu Mac.</p>
+  <p><strong>Your money, with clarity.</strong></p>
+  <p>A native app to organize your month, track expenses, and plan what comes next.<br>No account, no server. Your data stays on your Mac.</p>
   <p>
-    <img src="https://img.shields.io/badge/macOS-14%2B-184D3D?style=flat-square" alt="macOS 14 ou superior">
-    <img src="https://img.shields.io/badge/interface-SwiftUI-184D3D?style=flat-square" alt="Interface em SwiftUI">
-    <img src="https://img.shields.io/badge/dados-SQLite_local-184D3D?style=flat-square" alt="Dados em SQLite local">
+    <img src="https://img.shields.io/badge/macOS-14%2B-184D3D?style=flat-square" alt="macOS 14 or later">
+    <img src="https://img.shields.io/badge/interface-SwiftUI-184D3D?style=flat-square" alt="SwiftUI interface">
+    <img src="https://img.shields.io/badge/data-local_SQLite-184D3D?style=flat-square" alt="Data in local SQLite">
   </p>
-  <p><a href="#o-seu-mês-em-um-lugar">Recursos</a> · <a href="#comece-por-aqui">Como executar</a> · <a href="#gere-o-app">Build</a> · <a href="#seus-dados">Dados e backup</a></p>
+  <p><a href="#your-month-in-one-place">Features</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#your-data">Data and backup</a></p>
 </div>
 
 ---
 
-## O seu mês em um lugar
+## Your month in one place
 
-| Área | O que você acompanha |
+| Area | What you track |
 | --- | --- |
-| **Resumo** | Saldo atual, pendências, fatura, salário previsto e gastos por categoria. |
-| **Gastos** | Despesas recorrentes, organizadas por categoria e copiadas para os novos meses. |
-| **Saídas** | Compras e pagamentos pontuais, com filtros por status. |
-| **Entradas** | Salários, rendas extras e previsão da próxima entrada fixa. |
-| **Investimentos** | Fundos, objetivos, aportes, resgates e cobertura da reserva de emergência. |
-| **Configurações** | Recorrências, arquivos locais e importação ou exportação de backup. |
+| **Summary** | Current balance, pending payments, card bill, expected salary, and spending by category. |
+| **Expenses** | Recurring expenses, organized by category and copied into new months. |
+| **Outflows** | One-off purchases and payments, with status filters. |
+| **Income** | Salaries, extra income, and the next expected fixed income. |
+| **Investments** | Funds, goals, contributions, withdrawals, and emergency reserve coverage. |
+| **Settings** | Recurrences, local files, and backup import or export. |
 
-### Sempre por perto
+### Always close at hand
 
-Clique no símbolo do Finanças na barra de menus para consultar o saldo, as pendências, a fatura e a próxima entrada fixa. Você também pode registrar uma saída ou entrada por ali.
+Click the Finanças symbol in the menu bar to check your balance, pending payments, card bill, and next fixed income. You can also record an outflow or income there.
 
-**Abrir Finanças** leva à janela completa. Fechar a janela mantém o painel da barra de menus disponível; para sair do app, escolha **Encerrar Finanças** no menu do painel.
+**Open Finanças** takes you to the full window. Closing the window keeps the menu bar panel available; to quit the app, choose **Quit Finanças** from the panel menu.
 
-### Uma interface com espaço para respirar
+### An interface with room to breathe
 
-Verde profundo, tons de areia e um símbolo de crescimento dão identidade ao app. No macOS 26 ou superior, os botões usam Liquid Glass nativo; os cartões apresentam materiais translúcidos. Versões anteriores usam controles compatíveis.
+Deep green, sandy tones, and a symbol of growth give the app its identity. On macOS 26 or later, buttons use native Liquid Glass; cards feature translucent materials. Earlier versions use compatible controls.
 
-O app respeita a preferência **Reduzir transparência** do macOS. O botão de olho, disponível na janela e no painel da barra de menus, permite ocultar os valores.
+The app respects the macOS **Reduce transparency** preference. The eye button, available in the window and the menu bar panel, lets you hide amounts.
 
-## Comece por aqui
+## Start here
 
-Para executar, você precisa do **macOS 14 ou superior**. Para compilar o código atual, use **Xcode 26 ou superior**, com o SDK do macOS 26 e as ferramentas de linha de comando selecionadas.
+To run the app, you need **macOS 14 or later**. To compile the current code, use **Xcode 26 or later**, with the macOS 26 SDK and command line tools selected.
 
-Na raiz do projeto:
+From the project root:
 
 ```bash
 swift run Financas
 ```
 
-Você também pode abrir `Package.swift` no Xcode, selecionar o esquema **Financas** e pressionar **⌘R**.
+You can also open `Package.swift` in Xcode, select the **Financas** scheme, and press **⌘R**.
 
-## Gere o app
+## Build the app
 
-O script compila a versão de produção, inclui o ícone e cria o aplicativo com assinatura local:
+The script compiles the production version, includes the icon, and creates a locally signed app:
 
 ```bash
 ./scripts/build-app.sh
 ```
 
-O resultado fica em **`dist/Financas.app`**. Para abri-lo:
+The result is at **`dist/Financas.app`**. To open it:
 
 ```bash
 open dist/Financas.app
 ```
 
-Para gerar apenas o executável:
+To build only the executable:
 
 ```bash
 swift build -c release
 ```
 
-Ele estará em `.build/release/Financas`. A distribuição para outros Macs exige assinatura e notarização apropriadas; o script usa uma assinatura *ad hoc* para uso local.
+It will be at `.build/release/Financas`. Distribution to other Macs requires proper signing and notarization; the script uses an *ad hoc* signature for local use.
 
-## Como os saldos funcionam
+## How balances work
 
-O saldo atual parte do valor informado e acompanha as movimentações realizadas:
+The current balance starts from the amount you enter and tracks completed transactions:
 
-- Entradas recebidas e resgates aumentam o saldo da conta.
-- Gastos pagos e aportes em investimentos diminuem o saldo.
-- Lançamentos pendentes ou ainda na fatura não alteram o saldo até serem pagos.
-- Quitar a fatura muda os itens de **Na fatura** para **Pago**, sem criar outra despesa.
+- Received income and withdrawals increase the account balance.
+- Paid expenses and investment contributions decrease the balance.
+- Pending entries or those still on the card bill do not affect the balance until paid.
+- Paying off the card bill moves items from **On the bill** to **Paid**, without creating another expense.
 
-Recorrências de cartão com dia de vencimento passam para **Na fatura** quando a data chega e o app verifica os lançamentos. PIX, débito e débito automático permanecem pendentes até a confirmação do pagamento.
+Recurring card expenses with a due day move to **On the bill** when the date arrives and the app checks the entries. PIX, debit, and automatic debit remain pending until payment is confirmed.
 
-A reserva de emergência é exibida em meses de cobertura, usando o saldo do fundo marcado como reserva e os gastos fixos do mês selecionado.
+The emergency reserve is displayed in months of coverage, using the balance of the fund marked as the reserve and the selected month's fixed expenses.
 
-## Seus dados
+## Your data
 
-O banco SQLite fica neste caminho:
+The SQLite database is at this path:
 
 ```text
 ~/Library/Application Support/Financas/financas.sqlite
 ```
 
-Em **Configurações**, você pode revelar o arquivo no Finder, exportar um backup ou importar uma cópia. **A importação substitui os dados atuais.** O banco e os backups `.sqlite` são ignorados pelo Git.
+In **Settings**, you can reveal the file in Finder, export a backup, or import a copy. **Importing replaces the current data.** The database and `.sqlite` backups are ignored by Git.
 
-Este é um projeto de uso pessoal: a primeira execução cria a estrutura, os dados padrão e os fundos com saldos iniciais definidos em [`Database.swift`](Sources/Financas/Database.swift). Não cria meses nem movimentações de caixa. Revise esses valores antes de usar o projeto para suas próprias finanças.
+This is a personal project: the first launch creates the structure, default data, and funds with the opening balances defined in [`Database.swift`](Sources/Financas/Database.swift). It does not create months or cash transactions. Review these values before using the project for your own finances.
 
-## Desenvolvimento
+## Development
 
-Interface em **SwiftUI**, gráficos com **Swift Charts**, integração com o macOS em **AppKit** e persistência local em **SQLite**.
+Interface in **SwiftUI**, charts with **Swift Charts**, macOS integration through **AppKit**, and local persistence in **SQLite**.
 
 ```bash
 swift test
 ```
 
-O ícone é desenhado por código. Para regenerar os arquivos PNG e ICNS usados pelo app:
+The icon is drawn in code. To regenerate the PNG and ICNS files used by the app:
 
 ```bash
 swift scripts/generate-icon.swift
@@ -111,5 +111,5 @@ swift scripts/generate-icon.swift
 
 <div align="center">
   <br>
-  <p><em>Um mês de cada vez.</em></p>
+  <p><em>One month at a time.</em></p>
 </div>
