@@ -8,7 +8,7 @@
     <img src="https://img.shields.io/badge/interface-SwiftUI-184D3D?style=flat-square" alt="SwiftUI interface">
     <img src="https://img.shields.io/badge/data-local_SQLite-184D3D?style=flat-square" alt="Data in local SQLite">
   </p>
-  <p><a href="#your-month-in-one-place">Features</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#your-data">Data and backup</a></p>
+  <p><a href="#your-month-in-one-place">Features</a> · <a href="#local-ai-assistant">Local AI</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#your-data">Data and backup</a></p>
 </div>
 
 ---
@@ -22,7 +22,13 @@
 | **Outflows** | One-off purchases and payments, with status filters. |
 | **Income** | Salaries, extra income, and the next expected fixed income. |
 | **Investments** | Funds, goals, contributions, withdrawals, and emergency reserve coverage. |
-| **Settings** | Recurrences, local files, and backup import or export. |
+| **Settings** | Recurrences, local files, backup import or export, and local Ollama configuration. |
+
+### Local AI assistant
+
+Open the speech bubble in the lower-right corner of any main screen and choose **Registrar saída**. Describe one or more completed expenses in Portuguese, for example: `Gastei 42,90 no almoço no pix e 89 de Uber no cartão ontem.` The assistant extracts the entries, shows an editable review, and saves only after you confirm inside the conversation. The assistant is intentionally option-based rather than an unrestricted chat.
+
+Configure your Ollama URL and model in **Settings**. Requests require structured JSON output and use `think: false`. The app parses amounts, supported dates, and payment aliases before inference, calculates totals locally, and preserves its existing balance rules. See [AI architecture and supported input](docs/ai-architecture.md).
 
 ### Always close at hand
 
@@ -79,7 +85,7 @@ The current balance starts from the amount you enter and tracks completed transa
 - Pending entries or those still on the card bill do not affect the balance until paid.
 - Paying off the card bill moves items from **On the bill** to **Paid**, without creating another expense.
 
-Recurring card expenses with a due day move to **On the bill** when the date arrives and the app checks the entries. PIX, debit, and automatic debit remain pending until payment is confirmed.
+Recurring expenses show their configured charge day in the fixed expenses screen. Card expenses remain **Pending** until you manually change them to **On the bill**; the app no longer moves them automatically when the charge day arrives. PIX, debit, and automatic debit also remain pending until payment is confirmed.
 
 The emergency reserve is displayed in months of coverage, using the balance of the fund marked as the reserve and the selected month's fixed expenses.
 
@@ -97,7 +103,7 @@ This is a personal project: the first launch creates the structure, default data
 
 ## Development
 
-Interface in **SwiftUI**, charts with **Swift Charts**, macOS integration through **AppKit**, and local persistence in **SQLite**.
+Interface in **SwiftUI**, charts with **Swift Charts**, macOS integration through **AppKit**, local persistence in **SQLite**, and structured local AI integration through Ollama.
 
 ```bash
 swift test

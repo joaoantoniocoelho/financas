@@ -114,6 +114,10 @@ final class AppStore: ObservableObject {
     func save(_ value: Income) { perform { try database.saveIncome(value); try refreshCurrentMonth() } }
     func delete(_ value: Income) { perform { try database.deleteIncome(value.id); try refreshCurrentMonth() } }
     func save(_ value: Expense) { perform { try database.saveExpense(value); try refreshCurrentMonth() } }
+    func saveExpenseBatch(_ values: [Expense]) throws {
+        try database.saveExpenseBatch(values)
+        perform { try refreshCurrentMonth() }
+    }
     func delete(_ value: Expense) { perform { try database.deleteExpense(value.id); try refreshCurrentMonth() } }
     func save(_ value: Investment) { perform { try database.saveInvestment(value); try refreshCurrentMonth() } }
     func delete(_ value: Investment) { perform { try database.deleteInvestment(value.id); try refreshCurrentMonth() } }
@@ -126,7 +130,7 @@ final class AppStore: ObservableObject {
                 try database.instantiateRecurring(monthID: monthID)
                 if var expense = try database.expenses(monthID: monthID).first(where: { $0.recurringID == recurringID }) {
                     expense.date = .now
-                    expense.status = expense.paymentMethod == .card ? .invoice : .paid
+                    expense.status = expense.paymentMethod == .card ? .pending : .paid
                     try database.saveExpense(expense)
                 }
             }

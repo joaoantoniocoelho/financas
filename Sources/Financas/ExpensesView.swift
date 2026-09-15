@@ -72,22 +72,27 @@ struct ExpensesView: View {
     private func expenseRow(_ item:Expense,showCategory:Bool)->some View {
         HStack {
             BrandIcon(symbol: item.isRecurring ? "repeat" : "cart", color: AppBrand.amber)
-            VStack(alignment:.leading){Text(item.description).fontWeight(.medium);Text("\(showCategory ? item.category + " • " : "")\(item.paymentMethod.rawValue)\(competence(item))\(item.includedInInitialBalance ? " • já incluído no saldo inicial" : "")").font(.caption).foregroundStyle(.secondary)}
+            VStack(alignment:.leading){Text(item.description).fontWeight(.medium);Text("\(showCategory ? item.category + " • " : "")\(item.paymentMethod.rawValue)\(dueDay(item))\(competence(item))\(item.includedInInitialBalance ? " • já incluído no saldo inicial" : "")").font(.caption).foregroundStyle(.secondary)}
             Spacer(); Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit(); StatusBadge(item.status.rawValue,positive:[.paid,.prepaid].contains(item.status))
-            Menu {
-                ForEach(ExpenseStatus.allCases) { status in Button(status.rawValue) { var copy=item;copy.status=status;store.save(copy) } }
-                if [.paid,.prepaid].contains(item.status) && !item.includedInInitialBalance { Button("Já estava no saldo inicial") { var copy=item;copy.includedInInitialBalance=true;store.save(copy) } }
-                Divider();Button(item.isRecurring ? "Editar somente neste mês" : "Editar"){editing=item};Button(item.isRecurring ? "Excluir somente deste mês" : "Excluir",role:.destructive){store.delete(item)}
-            } label:{Image(systemName:"ellipsis.circle")}
+            CompactActionMenu {
+                ForEach(ExpenseStatus.allCases) { status in CompactMenuItem(status.rawValue) { var copy=item;copy.status=status;store.save(copy) } }
+                if [.paid,.prepaid].contains(item.status) && !item.includedInInitialBalance { CompactMenuItem("Já estava no saldo inicial") { var copy=item;copy.includedInInitialBalance=true;store.save(copy) } }
+                Divider();CompactMenuItem(item.isRecurring ? "Editar somente neste mês" : "Editar"){editing=item};CompactMenuItem(item.isRecurring ? "Excluir somente deste mês" : "Excluir", role: .destructive){store.delete(item)}
+            }
         }.padding(.vertical,10).contentShape(Rectangle()).onTapGesture{editing=item}
     }
     private func competence(_ item:Expense)->String { guard let y=item.competenceYear,let m=item.competenceMonth else{return ""};return " • competência \(String(format:"%02d",m))/\(y)" }
+    private func dueDay(_ item: Expense) -> String {
+        guard mode == .fixed, let recurringID = item.recurringID,
+              let day = store.recurring.first(where: { $0.id == recurringID })?.dueDay else { return "" }
+        return " • cobrança dia \(day)"
+    }
 }
 
 struct ExpenseEditor: View {
     @EnvironmentObject private var store:AppStore; @Environment(\.dismiss) private var dismiss
     @State var item:Expense; @State private var hasCompetence:Bool
-    private let categories=["Moradia","Carro","Saúde","Educação","Assinaturas","SaaS / Projetos","Mercado","Alimentação fora","Lazer","Compras","Transporte/Uber","Pets","Presentes","Viagens","Outros"]
+    private let categories = ExpenseCategories.all
     init(item:Expense){_item=State(initialValue:item);_hasCompetence=State(initialValue:item.competenceMonth != nil)}
     var body:some View {
         Form {

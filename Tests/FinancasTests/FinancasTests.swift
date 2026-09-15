@@ -215,7 +215,7 @@ final class FinancasTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance, 2000, accuracy: 0.001)
     }
 
-    func testCardRecurringMovesToInvoiceOnDueDay() throws {
+    func testCardRecurringStaysPendingUntilManuallyChanged() throws {
         let today = date(2026, 9, 15)
         let database = try makeDatabase(today: today)
         try database.saveRecurring(RecurringExpense(id: 0, description: "Streaming", category: "Assinaturas", amount: 50, dueDay: 15, paymentMethod: .card, notes: "", active: true))
@@ -223,7 +223,7 @@ final class FinancasTests: XCTestCase {
         try database.saveRecurring(RecurringExpense(id: 0, description: "Aluguel", category: "Moradia", amount: 1000, dueDay: 15, paymentMethod: .pix, notes: "", active: true))
         try database.saveRecurring(RecurringExpense(id: 0, description: "Sem dia", category: "Assinaturas", amount: 10, dueDay: nil, paymentMethod: .card, notes: "", active: true))
         let monthID = try database.createMonth(year: 2026, month: 9, initialBalance: 2000)
-        XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first { $0.description == "Streaming" }).status, .invoice)
+        XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first { $0.description == "Streaming" }).status, .pending)
         XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first { $0.description == "Depois" }).status, .pending)
         XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first { $0.description == "Aluguel" }).status, .pending)
         XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first { $0.description == "Sem dia" }).status, .pending)
@@ -245,7 +245,7 @@ final class FinancasTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(database.expenses(monthID: monthID).first).status, .pending)
     }
 
-    func testCardRecurringMovesToInvoiceWhenAppReopensOnDueDay() throws {
+    func testCardRecurringStaysPendingWhenAppReopensOnDueDay() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let url = directory.appendingPathComponent("test.sqlite")
         let before = try Database(url: url, today: date(2026, 9, 2))
@@ -253,7 +253,7 @@ final class FinancasTests: XCTestCase {
         let monthID = try before.createMonth(year: 2026, month: 9)
         XCTAssertEqual(try XCTUnwrap(before.expenses(monthID: monthID).first).status, .pending)
         let after = try Database(url: url, today: date(2026, 9, 15))
-        XCTAssertEqual(try XCTUnwrap(after.expenses(monthID: monthID).first).status, .invoice)
+        XCTAssertEqual(try XCTUnwrap(after.expenses(monthID: monthID).first).status, .pending)
     }
 
     func testPaidCardRecurringIsNotMovedToInvoiceOnDueDay() throws {

@@ -116,10 +116,10 @@ private struct InvestmentMovementRow:View {
             Spacer()
             Text("\(movement.kind == .contribution ? "+" : "−") \(AppFormat.money(movement.amount,hidden:hideAmounts))")
                 .font(.headline).monospacedDigit()
-            Menu {
-                Button("Editar",action:edit)
-                Button("Excluir",role:.destructive,action:delete)
-            } label:{ Image(systemName:"ellipsis.circle") }
+            CompactActionMenu {
+                CompactMenuItem("Editar", action: edit)
+                CompactMenuItem("Excluir", role: .destructive, action: delete)
+            }
         }
         .padding(.vertical,12).contentShape(Rectangle()).onTapGesture(perform:edit)
     }

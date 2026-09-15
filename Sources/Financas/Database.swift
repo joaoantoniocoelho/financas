@@ -23,9 +23,9 @@ final class Database {
         }
         try execute("PRAGMA foreign_keys = ON")
         try migrate()
+        try migrateAwayFromAutomaticCardInvoices()
         try seedIfNeeded()
         try seedInvestmentFundsIfNeeded()
-        try applyDueCardInvoices(on: today)
     }
 
     deinit { sqlite3_close(handle) }
@@ -283,7 +283,6 @@ final class Database {
         FROM recurring_expenses r WHERE active=1
           AND NOT EXISTS(SELECT 1 FROM monthly_expenses m WHERE m.month_id=? AND m.recurring_id=r.id)
         """, bindings: [monthID, monthID])
-        try applyDueCardInvoices(on: today)
     }
 
     func expenses(monthID: Int64) throws -> [Expense] {
@@ -292,6 +291,22 @@ final class Database {
             result.append(Expense(id: sqlite3_column_int64(s,0), monthID: sqlite3_column_int64(s,1), recurringID: sqlite3_column_type(s,2) == SQLITE_NULL ? nil : sqlite3_column_int64(s,2), date: optionalDate(s,3), description: text(s,4), category: text(s,5), amount: sqlite3_column_double(s,6), paymentMethod: PaymentMethod(rawValue: text(s,7)) ?? .pix, status: ExpenseStatus(rawValue: text(s,8)) ?? .pending, competenceYear: optionalInt(s,9), competenceMonth: optionalInt(s,10), notes: text(s,11), isRecurring: sqlite3_column_int(s,12) != 0, includedInInitialBalance: sqlite3_column_int(s,13) != 0))
         }
         return result
+    }
+
+    func saveExpenseBatch(_ items: [Expense]) throws {
+        guard !items.isEmpty, items.count <= 30,
+              items.allSatisfy({ $0.id == 0 && !$0.isRecurring && $0.amount.isFinite && $0.amount > 0 && !$0.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            throw DatabaseError.message("Lote de despesas inválido.")
+        }
+        try execute("SAVEPOINT expense_batch")
+        do {
+            for item in items { try saveExpense(item) }
+            try execute("RELEASE SAVEPOINT expense_batch")
+        } catch {
+            try? execute("ROLLBACK TO SAVEPOINT expense_batch")
+            try? execute("RELEASE SAVEPOINT expense_batch")
+            throw error
+        }
     }
 
     func saveExpense(_ newItem: Expense) throws {
@@ -508,8 +523,20 @@ final class Database {
         guard sqlite3_open(url.path, &handle) == SQLITE_OK else { throw DatabaseError.message("Backup inválido ou ilegível.") }
         try execute("PRAGMA foreign_keys = ON")
         try migrate()
+        try migrateAwayFromAutomaticCardInvoices()
         try seedInvestmentFundsIfNeeded()
-        try applyDueCardInvoices(on: today)
+    }
+
+    private func migrateAwayFromAutomaticCardInvoices() throws {
+        try execute("CREATE TABLE IF NOT EXISTS app_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        var alreadyMigrated = false
+        try rows("SELECT value FROM app_metadata WHERE key='manual_card_invoice_mode_v1'") { alreadyMigrated = text($0, 0) == "1" }
+        guard !alreadyMigrated else { return }
+        // These were the only entries created by the former automatic rule:
+        // recurring card expenses marked as invoice. The manually entered
+        // statement total has no recurring_id and is intentionally preserved.
+        try execute("UPDATE monthly_expenses SET status='Pendente', date=NULL, balance_applied=0 WHERE recurring_id IS NOT NULL AND payment_method='Cartão' AND status='Na fatura'")
+        try execute("INSERT OR REPLACE INTO app_metadata(key,value) VALUES('manual_card_invoice_mode_v1','1')")
     }
 
     func applyDueCardInvoices(on date: Date) throws {

@@ -1,6 +1,42 @@
 import AppKit
 import SwiftUI
 
+private struct CompactMenuDismissKey: EnvironmentKey { static let defaultValue: () -> Void = {} }
+extension EnvironmentValues {
+    var compactMenuDismiss: () -> Void {
+        get { self[CompactMenuDismissKey.self] }
+        set { self[CompactMenuDismissKey.self] = newValue }
+    }
+}
+
+struct CompactActionMenu<Content: View>: View {
+    @State private var presented = false
+    @ViewBuilder let content: () -> Content
+    var body: some View {
+        Button { presented.toggle() } label: {
+            Image(systemName: "ellipsis").font(.system(size: 13, weight: .bold)).frame(width: 28, height: 28)
+        }
+        .buttonStyle(.borderless).help("Mais ações")
+        .popover(isPresented: $presented, arrowEdge: .trailing) {
+            VStack(alignment: .leading, spacing: 2) { content() }
+                .padding(6).frame(minWidth: 190, alignment: .leading)
+                .environment(\.compactMenuDismiss, { presented = false })
+        }
+    }
+}
+
+struct CompactMenuItem: View {
+    @Environment(\.compactMenuDismiss) private var dismiss
+    let title: String; let role: ButtonRole?; let action: () -> Void
+    init(_ title: String, role: ButtonRole? = nil, action: @escaping () -> Void) { self.title = title; self.role = role; self.action = action }
+    var body: some View {
+        Group {
+            if let role { Button(title, role: role) { dismiss(); action() } }
+            else { Button(title) { dismiss(); action() } }
+        }.buttonStyle(.borderless).frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 extension AppBrand {
     /// Template artwork lets macOS choose the correct color for the menu bar.
     static let menuBarIcon: NSImage = {

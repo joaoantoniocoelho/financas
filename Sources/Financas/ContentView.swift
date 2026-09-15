@@ -20,6 +20,7 @@ struct ContentView: View {
     @EnvironmentObject private var store: AppStore
     @AppStorage("hideAmounts") private var hideAmounts = false
     @State private var section: AppSection? = .summary
+    @State private var showingAssistant = false
 
     var body: some View {
         NavigationSplitView {
@@ -66,6 +67,25 @@ struct ContentView: View {
             .groupBoxStyle(BrandGroupBoxStyle())
             .scrollContentBackground(.hidden)
             .toolbar { MonthToolbar() }
+            .overlay(alignment: .bottomTrailing) {
+                if showingAssistant, let month = store.selectedMonth {
+                    AIExpenseView(isPresented: $showingAssistant, month: month)
+                        .padding(.trailing, 22).padding(.bottom, 22)
+                } else {
+                    Button { showingAssistant = true } label: {
+                    Image(systemName: "message.fill")
+                            .font(.system(size: 20, weight: .semibold))
+                            .frame(width: 54, height: 54)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(AppBrand.forest)
+                    .background(AppBrand.mint, in: Circle())
+                    .shadow(radius: 10, y: 4)
+                    .help("Abrir assistente")
+                    .padding(.trailing, 22).padding(.bottom, 22)
+                }
+            }
+            .zIndex(100)
         }
         .environment(\.hideAmounts, hideAmounts)
         .alert("Não foi possível concluir", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage=nil } })) {
@@ -135,7 +155,13 @@ struct DashboardView: View {
                             Text("Seu mês em perspectiva.").foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Editar saldos") { editingBalance=true }.brandAction().controlSize(.large)
+                        Button("Editar saldos") { editingBalance=true }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(AppBrand.forest)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(AppBrand.mint, in: Capsule())
+                            .contentShape(Capsule())
                     }
                     HStack(alignment: .center, spacing: 24) {
                         VStack(alignment: .leading, spacing: 12) {

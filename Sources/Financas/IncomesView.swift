@@ -31,7 +31,7 @@ struct IncomesView: View {
             Spacer()
             Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit()
             StatusBadge(item.status.rawValue, positive: item.status == .received)
-            Menu { if item.status != .received { Button("Marcar como recebido") { var copy=item;copy.status = .received;if copy.date == nil { copy.date = .now };store.save(copy) } }; Button("Editar") { editing=item }; Button("Excluir", role:.destructive) { store.delete(item) } } label: { Image(systemName:"ellipsis.circle") }
+            CompactActionMenu { if item.status != .received { CompactMenuItem("Marcar como recebido") { var copy=item;copy.status = .received;if copy.date == nil { copy.date = .now };store.save(copy) } }; CompactMenuItem("Editar") { editing=item }; CompactMenuItem("Excluir", role:.destructive) { store.delete(item) } }
         }.padding(.vertical, 10).contentShape(Rectangle()).onTapGesture { editing=item }
     }
 }
