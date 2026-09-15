@@ -7,6 +7,7 @@ struct MenuBarView: View {
     @AppStorage("hideAmounts") private var hideAmounts = false
     @State private var editingExpense: Expense?
     @State private var editingIncome: Income?
+    @State private var assistantMonth: BudgetMonth?
 
     let openMainWindow: () -> Void
 
@@ -30,6 +31,22 @@ struct MenuBarView: View {
     }
 
     var body: some View {
+        Group {
+            if let month = assistantMonth {
+                AIExpenseView(
+                    isPresented: Binding(get: { assistantMonth != nil }, set: { if !$0 { assistantMonth = nil } }),
+                    month: month,
+                    panelWidth: 380,
+                    returnsToOverview: true
+                )
+            } else {
+                overview
+            }
+        }
+        .environment(\.hideAmounts, hideAmounts)
+    }
+
+    private var overview: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
 
@@ -265,6 +282,17 @@ struct MenuBarView: View {
             Button("Abrir Finanças", systemImage: "macwindow", action: openMainWindow)
                 .buttonStyle(.plain)
             Spacer()
+            Button {
+                assistantMonth = store.selectedMonth
+            } label: {
+                Label("Chat", systemImage: "message.fill")
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                    .foregroundStyle(AppBrand.forest)
+                    .background(AppBrand.mint, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(store.selectedMonth == nil)
+            .help(store.selectedMonth == nil ? "Crie um mês para usar o assistente" : "Abrir assistente nesta janela")
             Menu {
                 Button("Novo mês", systemImage: "calendar.badge.plus") {
                     store.createNextMonth()

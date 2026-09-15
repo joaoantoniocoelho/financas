@@ -26,13 +26,15 @@
 
 ### Local AI assistant
 
-Open the speech bubble in the lower-right corner of any main screen and choose **Registrar saída**. Describe one or more completed expenses in Portuguese, for example: `Gastei 42,90 no almoço no pix e 89 de Uber no cartão ontem.` The assistant extracts the entries, shows an editable review, and saves only after you confirm inside the conversation. The assistant is intentionally option-based rather than an unrestricted chat.
+Open the speech bubble in the lower-right corner of any main screen and choose **Registrar saída**. Describe one or more completed expenses in Portuguese, for example: `Gastei 42,90 no almoço no pix e 89 de Uber no cartão ontem.` Messages stay visible throughout the conversation. The assistant asks follow-up questions for missing amounts, payment methods or dates, then presents a summary for confirmation. Choose **Corrigir** to send a revised list or **Confirmar e salvar** to save. A success message appears in the chat, with the option to register another expense. The assistant follows a guided workflow rather than an unrestricted chat.
 
 Configure your Ollama URL and model in **Settings**. Requests require structured JSON output and use `think: false`. The app parses amounts, supported dates, and payment aliases before inference, calculates totals locally, and preserves its existing balance rules. See [AI architecture and supported input](docs/ai-architecture.md).
 
 ### Always close at hand
 
 Click the Finanças symbol in the menu bar to check your balance, pending payments, card bill, and next fixed income. You can also record an outflow or income there.
+
+Choose **Chat** in the panel footer to replace the quick overview with the assistant in the same window. Use **Voltar à visão rápida** in the chat header to return to the overview.
 
 **Open Finanças** takes you to the full window. Closing the window keeps the menu bar panel available; to quit the app, choose **Quit Finanças** from the panel menu.
 

@@ -1,6 +1,6 @@
 # Local AI
 
-The first use case is expense extraction: **Saídas → Registrar com IA**, also available in the menu bar. Review and explicit confirmation are required before writing. Configuration uses the existing Ollama URL and model settings.
+The first use case is expense extraction: open the speech bubble on any main screen and select **Registrar saída**. Review and explicit confirmation are required before writing. Configuration uses the existing Ollama URL and model settings.
 
 Card recurring expenses remain pending until the user changes their status manually. The former due-date transition to “Na fatura” is disabled. Existing recurring card entries previously moved automatically are reset once on the next database open; the manually entered statement total is preserved.
 
@@ -11,7 +11,7 @@ Card recurring expenses remain pending until the user changes their status manua
 - `AIService`: cancellation, JSON parsing, strict structural validation and use-case validation. The schema validator supports objects, arrays, strings, required keys, forbidden extra keys, enums and maximum array length. Extend and test its vocabulary before adding other schema types.
 - `StructuredAITask`: each new use case defines its typed output, schema, instructions, prepared input and semantic validation. Both connection checking and extraction use this path.
 - `ExpenseExtraction`: computes money candidates with Decimal, resolves supported dates and maps payment aliases before inference. The model can select candidate IDs, categorize and describe; it cannot supply calculated amounts or dates. Payment choices are restricted to methods recognized in the input.
-- `AIExpenseView`: editable drafts, missing-field validation and Decimal totals. Captures the destination month when opened. Sends only the entered text and prepared candidates, not the database or account balances.
+- `AIExpenseView`: guided conversation with a session transcript, persistent composer, missing-field questions, a confirmation summary and a success message. Captures the destination month when a registration starts. Explicit follow-up answers are parsed locally; only initial/replacement expense descriptions need inference. Corrections replace the entire proposed batch and require another confirmation. Totals use Decimal. Sends only the entered text and prepared candidates, not the database or account balances. Closing the panel ends the conversation; transcripts are not persisted.
 - `Database.saveExpenseBatch`: atomic savepoint; all expenses and balance effects commit together, or all roll back. Existing payment/status rules apply.
 
 ## Initial scope
