@@ -35,7 +35,9 @@ final class AppStore: ObservableObject {
         t.extrasReceived = incomes.filter { !$0.isFixed && $0.status == .received }.reduce(0) { $0 + $1.amount }
         t.recurringExpected = expenses.filter(\.isRecurring).reduce(0) { $0 + $1.amount }
         t.recurringPaid = expenses.filter { $0.isRecurring && [.paid,.prepaid].contains($0.status) }.reduce(0) { $0 + $1.amount }
-        t.invoice = expenses.filter { $0.status == .invoice }.reduce(0) { $0 + $1.amount }
+        let invoiceTotal = expenses.filter { $0.status == .invoice }.reduce(0) { $0 + $1.amount }
+        let prepaidInvoice = (try? database.invoicePrepaidAmount(monthID: selectedMonthID ?? 0)) ?? 0
+        t.invoice = max(0, invoiceTotal - prepaidInvoice)
         t.pending = expenses.filter { $0.status == .pending }.reduce(0) { $0 + $1.amount }
         t.variable = expenses.filter { !$0.isRecurring }.reduce(0) { $0 + $1.amount }
         t.paidVariable = expenses.filter { !$0.isRecurring && [.paid,.prepaid].contains($0.status) }.reduce(0) { $0 + $1.amount }
@@ -141,7 +143,12 @@ final class AppStore: ObservableObject {
     func delete(_ value: RecurringExpense) { perform { try database.deleteRecurring(value.id); recurring = try database.recurringExpenses() } }
     func syncRecurring() { guard let id=selectedMonthID else{return}; perform { try database.instantiateRecurring(monthID:id); try reloadMonth() } }
     func payInvoice() { guard let id=selectedMonthID else{return}; perform { try database.payInvoice(monthID:id); try refreshCurrentMonth() } }
-    func prepayInvoice() { guard let id=selectedMonthID else{return}; perform { try database.payInvoice(monthID:id, status:.prepaid); try refreshCurrentMonth() } }
+    func prepayInvoice(amount: Double) { guard let id=selectedMonthID else{return}; perform { try database.prepayInvoice(monthID:id, amount:amount); try refreshCurrentMonth() } }
+
+    func invoicePrepaidAmount() -> Double {
+        guard let id = selectedMonthID else { return 0 }
+        return (try? database.invoicePrepaidAmount(monthID: id)) ?? 0
+    }
 
     func exportBackup(to url: URL) {
         perform {

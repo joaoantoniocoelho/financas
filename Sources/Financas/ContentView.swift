@@ -179,9 +179,15 @@ struct DashboardView: View {
                     .foregroundStyle(.white)
                     .background(LinearGradient(colors: [AppBrand.forest, AppBrand.evergreen], startPoint: .leading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 24))
                     LazyVGrid(columns:columns,spacing:16) {
-                        MetricCard("Pendentes", store.totals.pending, "clock", color: .orange, size: .featured)
-                        MetricCard("Na fatura", store.totals.invoice, "creditcard", color: .orange, size: .featured)
-                        MetricCard("Salário previsto", store.totals.fixedExpected, "calendar", size:.featured)
+                        MetricCard(
+                            "Pendentes",
+                            store.totals.pending + store.totals.invoice,
+                            "clock",
+                            color: .orange,
+                            size: .featured,
+                            caption: "Pendentes: \(AppFormat.money(store.totals.pending, hidden: hideAmounts)) • Na fatura: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))"
+                        )
+                        ExpectedIncomeCard(total: store.incomes.filter { $0.status == .pending }.reduce(0) { $0 + $1.amount }, salary: store.nextSalary())
                         MetricCard(
                             "Investido no mês",
                             store.totals.investmentsActual,
@@ -190,7 +196,6 @@ struct DashboardView: View {
                             size: .featured,
                             caption: "de \(AppFormat.money(store.totals.investmentsPlanned, hidden: hideAmounts)) planejados"
                         )
-                        NextSalaryCard(salary:store.nextSalary())
                     }
                     GroupBox("Gastos por categoria") {
                         if spendingByCategory.isEmpty {
@@ -292,22 +297,26 @@ struct DashboardView: View {
     }
 }
 
-struct NextSalaryCard:View {
+struct ExpectedIncomeCard: View {
     @Environment(\.hideAmounts) private var hideAmounts
+    let total: Double
     let salary:NextSalary?
     var body:some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment:.top) {
                 BrandIcon(symbol: "calendar.badge.clock")
                 VStack(alignment:.leading,spacing:6) {
-                    Text("Próximo salário").font(.subheadline).foregroundStyle(.secondary)
+                    Text("Entradas previstas").font(.subheadline).foregroundStyle(.secondary)
+                    Text(AppFormat.money(total, hidden: hideAmounts))
+                        .font(.system(size: 27, weight: .semibold, design: .rounded))
+                        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                     if let salary {
-                        Text(salary.days == 0 ? "Hoje" : "Em \(salary.days) \(salary.days == 1 ? "dia" : "dias")")
-                            .font(.system(size: 25, weight: .semibold, design: .rounded))
-                        Text("\(AppFormat.money(salary.amount,hidden:hideAmounts)) • \(AppFormat.date.string(from:salary.date))")
+                        Text("Próximo salário: \(salary.days == 0 ? "hoje" : "em \(salary.days) \(salary.days == 1 ? "dia" : "dias")")")
                             .font(.subheadline).foregroundStyle(.secondary)
+                        Text("\(AppFormat.money(salary.amount,hidden:hideAmounts)) • \(AppFormat.date.string(from:salary.date))")
+                            .font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Text("Nenhum pendente").font(.title2.bold())
+                        Text("Nenhum salário pendente").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()

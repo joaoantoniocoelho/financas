@@ -63,6 +63,12 @@ final class Database {
           included_in_initial_balance INTEGER NOT NULL DEFAULT 0,
           excluded INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS invoice_payments (
+          id INTEGER PRIMARY KEY,
+          month_id INTEGER NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+          amount REAL NOT NULL,
+          date TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS investments (
           id INTEGER PRIMARY KEY, month_id INTEGER NOT NULL REFERENCES months(id) ON DELETE CASCADE,
           planned_date TEXT NOT NULL, planned_amount REAL NOT NULL,
@@ -338,14 +344,41 @@ final class Database {
         }
         try adjustBalance(monthID: monthID, by: -effect)
     }
+    func invoicePrepaidAmount(monthID: Int64) throws -> Double {
+        var total = 0.0
+        try rows("SELECT COALESCE(SUM(amount),0) FROM invoice_payments WHERE month_id=?", bindings: [monthID]) { total = sqlite3_column_double($0, 0) }
+        return total
+    }
+
     func payInvoice(monthID: Int64, status: ExpenseStatus = .paid) throws {
         guard status == .paid || status == .prepaid else {
             throw DatabaseError.message("Status inválido para quitar a fatura.")
         }
         var total = 0.0
+        let prepaid = try invoicePrepaidAmount(monthID: monthID)
         try rows("SELECT COALESCE(SUM(amount),0) FROM monthly_expenses WHERE month_id=? AND status='Na fatura' AND balance_applied=0", bindings:[monthID]) { total = sqlite3_column_double($0,0) }
         try execute("UPDATE monthly_expenses SET status=?, balance_applied=1 WHERE month_id=? AND status='Na fatura'", bindings: [status.rawValue, monthID])
-        try adjustBalance(monthID: monthID, by: -total)
+        try execute("DELETE FROM invoice_payments WHERE month_id=?", bindings: [monthID])
+        try adjustBalance(monthID: monthID, by: -(total - prepaid))
+    }
+
+    func prepayInvoice(monthID: Int64, amount: Double) throws {
+        guard amount > 0 else { throw DatabaseError.message("Informe um valor maior que zero.") }
+        var total = 0.0
+        try rows("SELECT COALESCE(SUM(amount),0) FROM monthly_expenses WHERE month_id=? AND status='Na fatura' AND balance_applied=0", bindings:[monthID]) { total = sqlite3_column_double($0,0) }
+        let prepaid = try invoicePrepaidAmount(monthID: monthID)
+        let remaining = total - prepaid
+        guard amount <= remaining + 0.005 else {
+            throw DatabaseError.message("O valor não pode ser maior que o restante da fatura.")
+        }
+
+        if abs(amount - remaining) <= 0.005 {
+            try execute("UPDATE monthly_expenses SET status=?, balance_applied=1 WHERE month_id=? AND status='Na fatura'", bindings: [ExpenseStatus.prepaid.rawValue, monthID])
+            try execute("DELETE FROM invoice_payments WHERE month_id=?", bindings: [monthID])
+        } else {
+            try execute("INSERT INTO invoice_payments(month_id,amount,date) VALUES(?,?,?)", bindings: [monthID, amount, today])
+        }
+        try adjustBalance(monthID: monthID, by: -amount)
     }
 
     func investments(monthID: Int64) throws -> [Investment] {
