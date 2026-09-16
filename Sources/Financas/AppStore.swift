@@ -141,6 +141,7 @@ final class AppStore: ObservableObject {
     func delete(_ value: RecurringExpense) { perform { try database.deleteRecurring(value.id); recurring = try database.recurringExpenses() } }
     func syncRecurring() { guard let id=selectedMonthID else{return}; perform { try database.instantiateRecurring(monthID:id); try reloadMonth() } }
     func payInvoice() { guard let id=selectedMonthID else{return}; perform { try database.payInvoice(monthID:id); try refreshCurrentMonth() } }
+    func prepayInvoice() { guard let id=selectedMonthID else{return}; perform { try database.payInvoice(monthID:id, status:.prepaid); try refreshCurrentMonth() } }
 
     func exportBackup(to url: URL) {
         perform {

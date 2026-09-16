@@ -8,6 +8,7 @@ struct ExpensesView: View {
     @State private var editingRecurring: RecurringExpense?
     @State private var filter: ExpenseFilter = .all
     @State private var confirmInvoice = false
+    @State private var confirmPrepayment = false
     var mode:Mode = .fixed
 
     private struct ExpenseGroup: Identifiable {
@@ -56,6 +57,7 @@ struct ExpensesView: View {
             .sheet(item:$editing){ExpenseEditor(item:$0)}
             .sheet(item:$editingRecurring){RecurringEditor(item:$0,addToCurrentMonth:true)}
             .confirmationDialog("Quitar a fatura?",isPresented:$confirmInvoice,titleVisibility:.visible){Button("Marcar lançamentos como pagos"){store.payInvoice()};Button("Cancelar",role:.cancel){}} message:{Text("Todos os gastos em “Na fatura” passarão para “Pago”. Nenhuma nova despesa será criada.")}
+            .confirmationDialog("Antecipar a fatura?",isPresented:$confirmPrepayment,titleVisibility:.visible){Button("Pagar fatura antecipadamente"){store.prepayInvoice()};Button("Cancelar",role:.cancel){}} message:{Text("O valor total da fatura será descontado do saldo agora e os lançamentos passarão para “Pago antecipado”.")}
         } else { EmptyMonthView() }
     }
 
@@ -65,6 +67,7 @@ struct ExpensesView: View {
                     Label("Fatura atual: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))",systemImage:"creditcard")
                     Label("Pago antecipadamente: \(AppFormat.money(modeExpenses.filter { $0.status == .prepaid }.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"checkmark.circle")
                     Spacer()
+                    Button("Antecipar pagamento") { confirmPrepayment=true }.disabled(store.totals.invoice == 0)
                     Button("Marcar fatura como paga") { confirmInvoice=true }.disabled(store.totals.invoice == 0)
                     if mode == .fixed { Button("Sincronizar recorrentes") { store.syncRecurring() }.help("Inclui recorrências ativas que ainda não existem neste mês") }
                 }.font(.caption).padding(16).brandSurface(cornerRadius: 14)

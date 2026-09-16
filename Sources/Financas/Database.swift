@@ -338,10 +338,13 @@ final class Database {
         }
         try adjustBalance(monthID: monthID, by: -effect)
     }
-    func payInvoice(monthID: Int64) throws {
+    func payInvoice(monthID: Int64, status: ExpenseStatus = .paid) throws {
+        guard status == .paid || status == .prepaid else {
+            throw DatabaseError.message("Status inválido para quitar a fatura.")
+        }
         var total = 0.0
         try rows("SELECT COALESCE(SUM(amount),0) FROM monthly_expenses WHERE month_id=? AND status='Na fatura' AND balance_applied=0", bindings:[monthID]) { total = sqlite3_column_double($0,0) }
-        try execute("UPDATE monthly_expenses SET status='Pago', balance_applied=1 WHERE month_id=? AND status='Na fatura'", bindings: [monthID])
+        try execute("UPDATE monthly_expenses SET status=?, balance_applied=1 WHERE month_id=? AND status='Na fatura'", bindings: [status.rawValue, monthID])
         try adjustBalance(monthID: monthID, by: -total)
     }
 

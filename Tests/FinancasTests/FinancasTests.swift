@@ -77,6 +77,18 @@ final class FinancasTests: XCTestCase {
         XCTAssertTrue(try database.expenses(monthID: monthID).contains { $0.description == "Compra" && $0.status == .paid })
     }
 
+    func testPrepayInvoiceMovesCardChargesToPrepaidAndDeductsBalance() throws {
+        let database = try makeDatabase()
+        let monthID = try database.createMonth(year: 2026, month: 9, initialBalance: 1000)
+        try database.saveExpense(Expense(id: 0, monthID: monthID, recurringID: nil, date: .now, description: "Compra", category: "Outros", amount: 80, paymentMethod: .card, status: .pending, competenceYear: nil, competenceMonth: nil, notes: "", isRecurring: false))
+
+        try database.payInvoice(monthID: monthID, status: .prepaid)
+
+        XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance, 920, accuracy: 0.001)
+        XCTAssertFalse(try database.expenses(monthID: monthID).contains { $0.status == .invoice })
+        XCTAssertTrue(try database.expenses(monthID: monthID).contains { $0.description == "Compra" && $0.status == .prepaid })
+    }
+
     func testNewMonthCopiesActiveRecurringExpenses() throws {
         let database = try makeDatabase()
         try database.saveRecurring(RecurringExpense(id: 0, description: "Aluguel", category: "Moradia", amount: 1000, dueDay: 5, paymentMethod: .pix, notes: "", active: true))
