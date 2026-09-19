@@ -33,7 +33,7 @@ struct ExpensesView: View {
         if let month = store.selectedMonth {
             VStack(spacing:0) {
                 ScreenHeader(mode == .fixed ? "Gastos fixos" : "Saídas", subtitle:mode == .fixed ? "Despesas recorrentes agrupadas por categoria" : "Gastos pontuais agrupados por categoria") {
-                    Picker("Filtro",selection:$filter){ForEach(ExpenseFilter.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).frame(width:430)
+                    Picker("Filtro",selection:$filter){ForEach(ExpenseFilter.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).pointerCursor().frame(width:430)
                     if mode == .fixed {
                         Button { editingRecurring=RecurringExpense(id:0,description:"",category:"Outros",amount:0,dueDay:nil,paymentMethod:.pix,notes:"",active:true) } label:{Label("Novo gasto fixo",systemImage:"plus")}
                     } else {
@@ -56,7 +56,7 @@ struct ExpensesView: View {
             }
             .sheet(item:$editing){ExpenseEditor(item:$0)}
             .sheet(item:$editingRecurring){RecurringEditor(item:$0,addToCurrentMonth:true)}
-            .confirmationDialog("Quitar a fatura?",isPresented:$confirmInvoice,titleVisibility:.visible){Button("Marcar lançamentos como pagos"){store.payInvoice()};Button("Cancelar",role:.cancel){}} message:{Text("Todos os gastos em “Na fatura” passarão para “Pago”. Nenhuma nova despesa será criada.")}
+            .confirmationDialog("Quitar a fatura?",isPresented:$confirmInvoice,titleVisibility:.visible){Button("Marcar lançamentos como pagos"){store.payInvoice()}.pointerCursor();Button("Cancelar",role:.cancel){}.pointerCursor()} message:{Text("Todos os gastos em “Na fatura” passarão para “Pago”. Nenhuma nova despesa será criada.")}
             .sheet(isPresented:$showingPrepayment) {
                 InvoicePrepaymentEditor(maximum: store.totals.invoice, initialAmount: store.totals.invoice) { value in
                     store.prepayInvoice(amount: value)
@@ -71,9 +71,9 @@ struct ExpensesView: View {
                     Label("Fatura atual: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))",systemImage:"creditcard")
                     Label("Pago antecipadamente: \(AppFormat.money(modeExpenses.filter { $0.status == .prepaid }.reduce(0) { $0 + $1.amount }, hidden: hideAmounts))",systemImage:"checkmark.circle")
                     Spacer()
-                    Button("Antecipar pagamento") { showingPrepayment = true }.disabled(store.totals.invoice == 0)
-                    Button("Marcar fatura como paga") { confirmInvoice=true }.disabled(store.totals.invoice == 0)
-                    if mode == .fixed { Button("Sincronizar recorrentes") { store.syncRecurring() }.help("Inclui recorrências ativas que ainda não existem neste mês") }
+                    Button("Antecipar pagamento") { showingPrepayment = true }.pointerCursor().disabled(store.totals.invoice == 0)
+                    Button("Marcar fatura como paga") { confirmInvoice=true }.pointerCursor().disabled(store.totals.invoice == 0)
+                    if mode == .fixed { Button("Sincronizar recorrentes") { store.syncRecurring() }.pointerCursor().help("Inclui recorrências ativas que ainda não existem neste mês") }
                 }.font(.caption).padding(16).brandSurface(cornerRadius: 14)
     }
     private func expenseRow(_ item:Expense,showCategory:Bool)->some View {
@@ -115,11 +115,11 @@ private struct InvoicePrepaymentEditor: View {
             LabeledContent("Restante da fatura", value: AppFormat.money(maximum))
             HStack {
                 Spacer()
-                Button("Cancelar", role: .cancel) { dismiss() }
+                Button("Cancelar", role: .cancel) { dismiss() }.pointerCursor()
                 Button("Antecipar") {
                     onConfirm(amount)
                     dismiss()
-                }.buttonStyle(.borderedProminent).disabled(amount <= 0 || amount > maximum + 0.005)
+                }.buttonStyle(.borderedProminent).pointerCursor().disabled(amount <= 0 || amount > maximum + 0.005)
             }
         }
         .padding()

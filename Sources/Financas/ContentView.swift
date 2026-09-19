@@ -77,7 +77,7 @@ struct ContentView: View {
                             .font(.system(size: 20, weight: .semibold))
                             .frame(width: 54, height: 54)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.plain).pointerCursor()
                     .foregroundStyle(AppBrand.forest)
                     .background(AppBrand.mint, in: Circle())
                     .shadow(radius: 10, y: 4)
@@ -89,7 +89,7 @@ struct ContentView: View {
         }
         .environment(\.hideAmounts, hideAmounts)
         .alert("Não foi possível concluir", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage=nil } })) {
-            Button("OK") { store.errorMessage=nil }
+            Button("OK") { store.errorMessage=nil }.pointerCursor()
         } message: { Text(store.errorMessage ?? "Erro desconhecido") }
     }
 }
@@ -126,6 +126,7 @@ struct DashboardView: View {
     @Environment(\.hideAmounts) private var hideAmounts
     @State private var editingBalance = false
     @State private var hoveredCategory:String?
+    @State private var selectedCategory:String?
     private let columns = [GridItem(.adaptive(minimum: 210), spacing: 16)]
 
     private struct CategorySpending:Identifiable {
@@ -143,6 +144,15 @@ struct DashboardView: View {
     }
 
     private var totalCategorySpending:Double { spendingByCategory.reduce(0) { $0 + $1.total } }
+    private var activeCategory:String? { selectedCategory ?? hoveredCategory }
+    private var highlightedCategory:String? { activeCategory }
+    private var activeSpending:CategorySpending? {
+        guard let activeCategory else { return nil }
+        return spendingByCategory.first { $0.category == activeCategory }
+    }
+    private func categoryPercentage(_ item:CategorySpending) -> Int {
+        Int((item.total / totalCategorySpending * 100).rounded())
+    }
 
     var body: some View {
         if let month = store.selectedMonth {
@@ -156,7 +166,7 @@ struct DashboardView: View {
                         }
                         Spacer()
                         Button("Editar saldos") { editingBalance=true }
-                            .buttonStyle(.plain)
+                            .buttonStyle(.plain).pointerCursor()
                             .foregroundStyle(AppBrand.forest)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 10)
@@ -207,18 +217,18 @@ struct DashboardView: View {
                                     .font(.caption).foregroundStyle(.secondary)
                                 HStack(spacing:20) {
                                     Chart(spendingByCategory) { item in
-                                        SectorMark(
-                                            angle:.value("Valor",item.total),
-                                            innerRadius:.ratio(0.64),
-                                            outerRadius:.ratio(hoveredCategory == item.category ? 1 : 0.94),
-                                            angularInset:1.5
-                                        )
-                                        .cornerRadius(3)
-                                        .foregroundStyle(by:.value("Categoria",item.category))
-                                        .opacity(hoveredCategory == nil || hoveredCategory == item.category ? 1 : 0.48)
-                                        .annotation(position:.overlay) {
+                                            SectorMark(
+                                                angle:.value("Valor",item.total),
+                                                innerRadius:.ratio(0.64),
+                                                outerRadius:.ratio(highlightedCategory == item.category ? 1 : 0.94),
+                                                angularInset:1.5
+                                            )
+                                            .cornerRadius(3)
+                                            .foregroundStyle(by:.value("Categoria",item.category))
+                                            .opacity(highlightedCategory == nil || highlightedCategory == item.category ? 1 : 0.48)
+                                            .annotation(position:.overlay) {
                                             if item.total / totalCategorySpending >= 0.08 {
-                                                Text("\(Int((item.total / totalCategorySpending * 100).rounded()))%")
+                                                Text("\(categoryPercentage(item))%")
                                                     .font(.caption.bold()).foregroundStyle(.white)
                                             }
                                         }
@@ -229,37 +239,39 @@ struct DashboardView: View {
                                         range: spendingByCategory.indices.map { AppBrand.chartColors[$0 % AppBrand.chartColors.count] }
                                     )
                                     .chartOverlay { proxy in
-                                        GeometryReader { geometry in
-                                            Rectangle().fill(.clear).contentShape(Rectangle())
-                                                .onContinuousHover { phase in
-                                                    switch phase {
-                                                    case .active(let location):
-                                                        guard let anchor=proxy.plotFrame else { hoveredCategory=nil;return }
-                                                        let frame=geometry[anchor]
-                                                        let point=CGPoint(x:location.x-frame.minX,y:location.y-frame.minY)
-                                                        let center=CGPoint(x:frame.width/2,y:frame.height/2)
-                                                        let distance=hypot(point.x-center.x,point.y-center.y)
-                                                        let radius=min(frame.width,frame.height)/2
-                                                        guard distance >= radius*0.42 && distance <= radius*1.05,
-                                                              let value:Double=proxy.value(atAngle:proxy.angle(at:point)) else { hoveredCategory=nil;return }
-                                                        hoveredCategory=category(at:value)
-                                                    case .ended: hoveredCategory=nil
-                                                    }
-                                                }
+                                        CategoryChartOverlay(proxy: proxy) { value in
+                                            hoveredCategory = value.flatMap { category(at: $0) }
+                                        } onSelect: { value in
+                                            guard let value, let category = category(at: value) else {
+                                                selectedCategory = nil
+                                                hoveredCategory = nil
+                                                return
+                                            }
+                                            selectedCategory = category
+                                            hoveredCategory = category
                                         }
                                     }
                                     .frame(minWidth:240,minHeight:300)
                                     GroupBox {
-                                        if let selected=spendingByCategory.first(where:{$0.category == hoveredCategory}) {
+                                        if let selected=activeSpending {
                                             VStack(alignment:.leading,spacing:7) {
                                                 HStack {
                                                     Text(selected.category).font(.headline)
                                                     Spacer()
                                                     Text(AppFormat.money(selected.total,hidden:hideAmounts)).font(.headline).monospacedDigit()
+                                                    if selectedCategory != nil {
+                                                        Button { selectedCategory=nil; hoveredCategory=nil } label: {
+                                                            Image(systemName:"xmark.circle.fill")
+                                                        }
+                                                        .buttonStyle(.plain).pointerCursor()
+                                                        .foregroundStyle(.secondary)
+                                                        .help("Fechar categoria")
+                                                    }
                                                 }
-                                                Text("\(Int((selected.total/totalCategorySpending*100).rounded()))% do total").font(.caption).foregroundStyle(.secondary)
+                                                Text(selectedCategory == nil ? "\(categoryPercentage(selected))% do total" : "\(categoryPercentage(selected))% do total • Clique em outra fatia para trocar")
+                                                    .font(.caption).foregroundStyle(.secondary)
                                                 Divider()
-                                                ScrollView {
+                                                ScrollView(.vertical) {
                                                     VStack(spacing:6) {
                                                         ForEach(selected.items) { expense in
                                                             HStack {
@@ -273,11 +285,12 @@ struct DashboardView: View {
                                                         }
                                                     }
                                                 }
+                                                .frame(maxHeight:220)
                                             }
                                         } else {
-                                            ContentUnavailableView("Passe o mouse sobre uma fatia",systemImage:"cursorarrow.motionlines",description:Text("Veja os lançamentos que compõem cada categoria."))
+                                            ContentUnavailableView("Clique em uma fatia",systemImage:"cursorarrow.click",description:Text("O painel ficará fixo com os gastos da categoria e poderá ser rolado."))
                                         }
-                                    }.frame(width:230,height:260)
+                                    }.frame(width:260).frame(minHeight:260,maxHeight:320)
                                 }
                             }.padding(8)
                         }
@@ -294,6 +307,53 @@ struct DashboardView: View {
             if angleValue <= accumulated { return item.category }
         }
         return spendingByCategory.last?.category
+    }
+}
+
+private struct CategoryChartOverlay: View {
+    let proxy: ChartProxy
+    let onHover: (Double?) -> Void
+    let onSelect: (Double?) -> Void
+
+    init(proxy: ChartProxy, onHover: @escaping (Double?) -> Void, onSelect: @escaping (Double?) -> Void) {
+        self.proxy = proxy
+        self.onHover = onHover
+        self.onSelect = onSelect
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            Rectangle().fill(.clear).contentShape(Rectangle())
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let location):
+                        let value = value(at: location, in: geometry)
+                        if value == nil {
+                            NSCursor.arrow.set()
+                        } else {
+                            NSCursor.pointingHand.set()
+                        }
+                        onHover(value)
+                    case .ended:
+                        NSCursor.arrow.set()
+                        onHover(nil)
+                    }
+                }
+                .gesture(SpatialTapGesture().onEnded { event in
+                    onSelect(value(at: event.location, in: geometry))
+                })
+        }
+    }
+
+    private func value(at location: CGPoint, in geometry: GeometryProxy) -> Double? {
+        guard let anchor = proxy.plotFrame else { return nil }
+        let frame = geometry[anchor]
+        let point = CGPoint(x: location.x - frame.minX, y: location.y - frame.minY)
+        let center = CGPoint(x: frame.width / 2, y: frame.height / 2)
+        let distance = hypot(point.x - center.x, point.y - center.y)
+        let radius = min(frame.width, frame.height) / 2
+        guard distance >= radius * 0.42, distance <= radius * 1.05 else { return nil }
+        return proxy.value(atAngle: proxy.angle(at: point))
     }
 }
 
@@ -356,5 +416,5 @@ struct MetricCard: View {
 struct MonthEditor: View {
     @EnvironmentObject private var store:AppStore; @Environment(\.dismiss) private var dismiss
     @State var month:BudgetMonth
-    var body:some View { Form { TextField("Saldo inicial",value:$month.initialBalance,format:.number);TextField("Saldo atual",value:$month.currentBalance,format:.number);Text("O saldo atual é atualizado ao receber entradas, pagar gastos ou realizar investimentos. Edite-o apenas para conciliar com a conta.").font(.caption).foregroundStyle(.secondary); Toggle("Informar data",isOn:Binding(get:{month.balanceDate != nil},set:{month.balanceDate = $0 ? .now:nil})); if month.balanceDate != nil { DatePicker("Data do saldo",selection:Binding(get:{month.balanceDate ?? .now},set:{month.balanceDate=$0}),displayedComponents:.date) }; HStack{Spacer();Button("Cancelar"){dismiss()};Button("Salvar"){store.saveMonth(month);dismiss()}.keyboardShortcut(.defaultAction)} }.padding().frame(width:420) }
+    var body:some View { Form { TextField("Saldo inicial",value:$month.initialBalance,format:.number);TextField("Saldo atual",value:$month.currentBalance,format:.number);Text("O saldo atual é atualizado ao receber entradas, pagar gastos ou realizar investimentos. Edite-o apenas para conciliar com a conta.").font(.caption).foregroundStyle(.secondary); Toggle("Informar data",isOn:Binding(get:{month.balanceDate != nil},set:{month.balanceDate = $0 ? .now:nil})); if month.balanceDate != nil { DatePicker("Data do saldo",selection:Binding(get:{month.balanceDate ?? .now},set:{month.balanceDate=$0}),displayedComponents:.date) }; HStack{Spacer();Button("Cancelar"){dismiss()}.pointerCursor();Button("Salvar"){store.saveMonth(month);dismiss()}.keyboardShortcut(.defaultAction).pointerCursor()} }.padding().frame(width:420) }
 }

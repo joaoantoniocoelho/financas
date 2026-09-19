@@ -91,5 +91,5 @@ struct EditorButtons: View {
 struct StatusBadge: View {
     let text:String; let positive:Bool
     init(_ text:String,positive:Bool=false){self.text=text;self.positive=positive}
-    var body:some View { Text(text).font(.caption.weight(.medium)).padding(.horizontal,10).padding(.vertical,5).background((positive ? AppBrand.accent : AppBrand.amber).opacity(0.12),in:Capsule()).foregroundStyle(positive ? AppBrand.accent : AppBrand.amber).frame(width:110) }
+    var body:some View { Text(text).font(.caption.weight(.medium)).padding(.horizontal,10).padding(.vertical,5).background((positive ? AppBrand.accent : AppBrand.amber).opacity(0.12),in:Capsule()).foregroundStyle(positive ? AppBrand.accent : AppBrand.amber).frame(width:110).pointerCursor() }
 }

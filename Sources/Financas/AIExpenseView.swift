@@ -58,7 +58,7 @@ struct AIExpenseView: View {
                 Spacer()
                 Button { task?.cancel(); isPresented = false } label: {
                     Image(systemName: returnsToOverview ? "arrow.uturn.backward" : "xmark").frame(width: 28, height: 28)
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).pointerCursor()
                     .help(returnsToOverview ? "Voltar à visão rápida" : "Fechar conversa")
                     .accessibilityLabel(returnsToOverview ? "Voltar à visão rápida" : "Fechar conversa")
             }.padding(16)
@@ -98,7 +98,7 @@ struct AIExpenseView: View {
                         .disabled(!acceptsText || busy).onSubmit(send)
                     Button(action: send) {
                         Image(systemName: "arrow.up.circle.fill").font(.system(size: 26)).foregroundStyle(AppBrand.accent)
-                    }.buttonStyle(.plain).disabled(!canSend).help("Enviar mensagem")
+                    }.buttonStyle(.plain).pointerCursor().disabled(!canSend).help("Enviar mensagem")
                 }
                 if text.count > 4000 { Text("Use até 4.000 caracteres por mensagem.").font(.caption).foregroundStyle(.red) }
             }.padding(14)
@@ -126,29 +126,29 @@ struct AIExpenseView: View {
                 append("Me conte o que você gastou. Inclua valor, pagamento e data. Pode enviar vários gastos juntos.\n\nPor exemplo: Gastei 42,90 no almoço no pix e 89 de Uber no cartão ontem.")
                 composerFocused = true
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.bordered).pointerCursor()
         case .review:
             VStack(alignment: .leading, spacing: 10) {
                 ForEach($drafts) { $draft in
                     Toggle("\(draft.description): já incluído no saldo inicial", isOn: $draft.includedInInitialBalance).font(.caption)
                 }
                 HStack {
-                    Button("Confirmar e salvar", action: save).buttonStyle(.borderedProminent).disabled(saving || drafts.isEmpty || !drafts.allSatisfy(\.valid))
+                    Button("Confirmar e salvar", action: save).buttonStyle(.borderedProminent).pointerCursor().disabled(saving || drafts.isEmpty || !drafts.allSatisfy(\.valid))
                     Button("Corrigir") {
                         append("Quero corrigir os gastos.", user: true)
                         append("Envie novamente a lista completa com as correções. Vou substituir a proposta e pedir sua confirmação antes de salvar.")
                         drafts = []; mode = .capture; composerFocused = true
                     }
                 }
-                Button("Cancelar lançamento", action: cancel)
+                Button("Cancelar lançamento", action: cancel).pointerCursor()
             }
         case .missing(_, .payment):
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(PaymentMethod.allCases) { method in Button(method.rawValue) { text = method.rawValue; send() }.buttonStyle(.bordered) }
-                Button("Cancelar lançamento", action: cancel)
+                ForEach(PaymentMethod.allCases) { method in Button(method.rawValue) { text = method.rawValue; send() }.buttonStyle(.bordered).pointerCursor() }
+                Button("Cancelar lançamento", action: cancel).pointerCursor()
             }
         case .capture, .missing:
-            Button("Cancelar lançamento", action: cancel).font(.caption)
+            Button("Cancelar lançamento", action: cancel).font(.caption).pointerCursor()
         }
     }
 

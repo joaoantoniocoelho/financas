@@ -16,7 +16,7 @@ struct CompactActionMenu<Content: View>: View {
         Button { presented.toggle() } label: {
             Image(systemName: "ellipsis").font(.system(size: 13, weight: .bold)).frame(width: 28, height: 28)
         }
-        .buttonStyle(.borderless).help("Mais ações")
+        .buttonStyle(.borderless).pointerCursor().help("Mais ações")
         .popover(isPresented: $presented, arrowEdge: .trailing) {
             VStack(alignment: .leading, spacing: 2) { content() }
                 .padding(6).frame(minWidth: 190, alignment: .leading)
@@ -33,7 +33,7 @@ struct CompactMenuItem: View {
         Group {
             if let role { Button(title, role: role) { dismiss(); action() } }
             else { Button(title) { dismiss(); action() } }
-        }.buttonStyle(.borderless).frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(.borderless).pointerCursor().frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -145,19 +145,29 @@ private struct BrandActionStyle: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if #available(macOS 26.0, *), !reduceTransparency {
             if prominent {
-                content.buttonStyle(.glassProminent)
+                content.buttonStyle(.glassProminent).pointerCursor()
             } else {
-                content.buttonStyle(.glass)
+                content.buttonStyle(.glass).pointerCursor()
             }
         } else if prominent {
-            content.buttonStyle(.borderedProminent)
+            content.buttonStyle(.borderedProminent).pointerCursor()
         } else {
-            content.buttonStyle(.bordered)
+            content.buttonStyle(.bordered).pointerCursor()
         }
     }
 }
 
 extension View {
+    func pointerCursor() -> some View {
+        onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.set()
+            } else {
+                NSCursor.arrow.set()
+            }
+        }
+    }
+
     func brandSurface(cornerRadius: CGFloat = 20) -> some View {
         modifier(BrandSurface(cornerRadius: cornerRadius))
     }

@@ -1,74 +1,68 @@
 import AppKit
-import Charts
 import SwiftUI
+
+private enum MenuBarLayout {
+    static let width: CGFloat = 380
+    static let padding: CGFloat = 12
+    static let sectionSpacing: CGFloat = 8
+
+    static let markSize: CGFloat = 30
+    static let titleSize: CGFloat = 20
+    static let headerSpacing: CGFloat = 8
+    static let titleStackSpacing: CGFloat = 0
+
+    static let monthStepperHeight: CGFloat = 24
+    static let monthStepperChevronSize: CGFloat = 12
+
+    static let balancePaddingH: CGFloat = 12
+    static let balancePaddingV: CGFloat = 8
+    static let balanceSpacing: CGFloat = 2
+    static let balanceCorner: CGFloat = 14
+
+    static let infoRowSpacing: CGFloat = 8
+    static let actionSpacing: CGFloat = 8
+    static let actionMinHeight: CGFloat = 28
+    static let actionCorner: CGFloat = 10
+
+    static let footerIconSize: CGFloat = 18
+    static let clickTarget: CGFloat = 24
+}
 
 struct MenuBarView: View {
     @EnvironmentObject private var store: AppStore
     @AppStorage("hideAmounts") private var hideAmounts = false
     @State private var editingExpense: Expense?
     @State private var editingIncome: Income?
-    @State private var assistantMonth: BudgetMonth?
 
     let openMainWindow: () -> Void
 
-    private struct CategorySpending: Identifiable {
-        let category: String
-        let total: Double
-        var id: String { category }
-    }
-
-    private var spendingByCategory: [CategorySpending] {
-        let expenses = store.expenses.filter {
-            [.paid, .prepaid, .invoice].contains($0.status)
-        }
-        return Dictionary(grouping: expenses, by: \.category)
-            .map { CategorySpending(category: $0.key, total: $0.value.reduce(0) { $0 + $1.amount }) }
-            .sorted { $0.total > $1.total }
-    }
-
-    private var totalSpending: Double {
-        spendingByCategory.reduce(0) { $0 + $1.total }
-    }
-
     var body: some View {
-        Group {
-            if let month = assistantMonth {
-                AIExpenseView(
-                    isPresented: Binding(get: { assistantMonth != nil }, set: { if !$0 { assistantMonth = nil } }),
-                    month: month,
-                    panelWidth: 380,
-                    returnsToOverview: true
-                )
-            } else {
-                overview
-            }
-        }
-        .environment(\.hideAmounts, hideAmounts)
+        overview
+            .environment(\.hideAmounts, hideAmounts)
     }
 
     private var overview: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: MenuBarLayout.sectionSpacing) {
             header
 
             if let month = store.selectedMonth {
                 monthPicker
                 balanceCard(month)
                 totals
-                categoryChart
 
                 if let salary = store.nextSalary() {
                     nextSalary(salary)
                 }
 
                 Divider()
-                BrandGlassControls { quickActions(month) }
+                quickActions(month)
             } else {
                 ContentUnavailableView(
                     "Nenhum mês",
                     systemImage: "calendar",
                     description: Text("Crie um mês para começar a registrar suas finanças.")
                 )
-                .frame(maxWidth: .infinity, minHeight: 150)
+                .frame(maxWidth: .infinity, minHeight: 120)
 
                 Button("Criar primeiro mês", systemImage: "plus") {
                     store.createNextMonth()
@@ -80,8 +74,9 @@ struct MenuBarView: View {
             Divider()
             footer
         }
-        .padding(16)
-        .frame(width: 380)
+        .padding(MenuBarLayout.padding)
+        .frame(width: MenuBarLayout.width)
+        .fixedSize(horizontal: false, vertical: true)
         .background { BrandBackground() }
         .environment(\.hideAmounts, hideAmounts)
         .sheet(item: $editingExpense) { ExpenseEditor(item: $0) }
@@ -93,24 +88,25 @@ struct MenuBarView: View {
                 set: { if !$0 { store.errorMessage = nil } }
             )
         ) {
-            Button("OK") { store.errorMessage = nil }
+            Button("OK") { store.errorMessage = nil }.pointerCursor()
         } message: {
             Text(store.errorMessage ?? "Erro desconhecido")
         }
     }
 
     private var header: some View {
-        HStack(spacing: 10) {
-            BrandMark().frame(width: 36, height: 36)
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Finanças").font(.system(size: 22, weight: .semibold, design: .serif))
+        HStack(spacing: MenuBarLayout.headerSpacing) {
+            BrandMark().frame(width: MenuBarLayout.markSize, height: MenuBarLayout.markSize)
+            VStack(alignment: .leading, spacing: MenuBarLayout.titleStackSpacing) {
+                Text("Finanças").font(.system(size: MenuBarLayout.titleSize, weight: .semibold, design: .serif))
                 Text("Visão rápida").font(.caption).foregroundStyle(.secondary)
             }
-            Spacer()
+            Spacer(minLength: 8)
             Button {
                 hideAmounts.toggle()
             } label: {
                 Image(systemName: hideAmounts ? "eye.slash" : "eye")
+                    .frame(minWidth: MenuBarLayout.clickTarget, minHeight: MenuBarLayout.clickTarget)
             }
             .brandAction()
             .controlSize(.small)
@@ -119,23 +115,54 @@ struct MenuBarView: View {
     }
 
     private var monthPicker: some View {
-        Picker(
-            "Mês",
-            selection: Binding(
-                get: { store.selectedMonthID ?? 0 },
-                set: store.select
-            )
-        ) {
-            ForEach(store.months) { month in
-                Text(month.title).tag(month.id)
-            }
+        HStack(spacing: 10) {
+            monthStepButton(offset: -1, symbol: "chevron.left", help: "Mês anterior")
+            Text(monthStepperLabel)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+                .accessibilityLabel("Mês")
+                .accessibilityValue(store.selectedMonth?.title ?? "")
+            monthStepButton(offset: 1, symbol: "chevron.right", help: "Próximo mês")
         }
-        .labelsHidden()
-        .frame(maxWidth: .infinity)
+        .frame(minHeight: MenuBarLayout.monthStepperHeight)
+    }
+
+    private var monthStepperLabel: String {
+        store.selectedMonth?.title.lowercased(with: Locale(identifier: "pt_BR")) ?? ""
+    }
+
+    private func monthStepButton(offset: Int, symbol: String, help: String) -> some View {
+        let enabled = adjacentMonthID(offset) != nil
+        return Button {
+            guard let id = adjacentMonthID(offset) else { return }
+            store.select(id)
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: MenuBarLayout.monthStepperChevronSize, weight: .semibold))
+                .foregroundStyle(enabled ? AppBrand.accent : .secondary)
+                .frame(width: MenuBarLayout.clickTarget, height: MenuBarLayout.clickTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).pointerCursor()
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.35)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+
+    private func adjacentMonthID(_ offset: Int) -> Int64? {
+        guard let id = store.selectedMonthID,
+              let index = store.months.firstIndex(where: { $0.id == id }) else { return nil }
+        let next = index + offset
+        guard store.months.indices.contains(next) else { return nil }
+        return store.months[next].id
     }
 
     private func balanceCard(_ month: BudgetMonth) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: MenuBarLayout.balanceSpacing) {
             Label("Saldo atual", systemImage: "wallet.pass")
                 .font(.caption)
                 .foregroundStyle(AppBrand.mint)
@@ -144,114 +171,34 @@ struct MenuBarView: View {
                 .monospacedDigit()
                 .foregroundStyle(.white)
         }
-        .padding(14)
+        .padding(.horizontal, MenuBarLayout.balancePaddingH)
+        .padding(.vertical, MenuBarLayout.balancePaddingV)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(AppBrand.forest, in: RoundedRectangle(cornerRadius: 18))
+        .background(AppBrand.forest, in: RoundedRectangle(cornerRadius: MenuBarLayout.balanceCorner, style: .continuous))
     }
 
     private var totals: some View {
-        HStack(spacing: 10) {
-            MenuBarMetric(title: "Pendentes", value: store.totals.pending, icon: "clock", color: .orange, hidden: hideAmounts)
-            MenuBarMetric(title: "Na fatura", value: store.totals.invoice, icon: "creditcard", color: .orange, hidden: hideAmounts)
-        }
-    }
-
-    @ViewBuilder
-    private var categoryChart: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("Gastos por categoria", systemImage: "chart.pie")
-                .font(.subheadline.weight(.semibold))
-
-            if spendingByCategory.isEmpty {
-                Text("Nenhum gasto realizado neste mês.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 54, alignment: .center)
-            } else {
-                HStack(spacing: 14) {
-                    Chart(spendingByCategory) { item in
-                        SectorMark(
-                            angle: .value("Valor", item.total),
-                            innerRadius: .ratio(0.58),
-                            angularInset: 1.5
-                        )
-                        .cornerRadius(2)
-                        .foregroundStyle(by: .value("Categoria", item.category))
-                    }
-                    .chartLegend(.hidden)
-                    .chartForegroundStyleScale(
-                        domain: spendingByCategory.map(\.category),
-                        range: spendingByCategory.indices.map(chartColor)
-                    )
-                    .chartBackground { _ in
-                        VStack(spacing: 1) {
-                            Text("Total")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                            Text(AppFormat.money(totalSpending, hidden: hideAmounts))
-                                .font(.caption.weight(.semibold))
-                                .minimumScaleFactor(0.65)
-                                .lineLimit(1)
-                        }
-                        .frame(width: 76)
-                    }
-                    .frame(width: 145, height: 145)
-
-                    VStack(alignment: .leading, spacing: 7) {
-                        ForEach(Array(spendingByCategory.prefix(4).enumerated()), id: \.element.id) { index, item in
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(chartColor(index))
-                                    .frame(width: 7, height: 7)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.category)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                    Text(AppFormat.money(item.total, hidden: hideAmounts))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                        .monospacedDigit()
-                                }
-                            }
-                        }
-
-                        if spendingByCategory.count > 4 {
-                            Text("+ \(spendingByCategory.count - 4) categorias")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-        .padding(10)
-        .brandSurface(cornerRadius: 16)
-    }
-
-    private func chartColor(_ index: Int) -> Color {
-        AppBrand.chartColors[index % AppBrand.chartColors.count]
+        MenuBarInfoRow(
+            icon: "clock",
+            title: "Pendentes",
+            detail: "Pendentes: \(AppFormat.money(store.totals.pending, hidden: hideAmounts)) • Na fatura: \(AppFormat.money(store.totals.invoice, hidden: hideAmounts))",
+            amount: store.totals.pending + store.totals.invoice,
+            hidden: hideAmounts
+        )
     }
 
     private func nextSalary(_ salary: NextSalary) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.title2)
-                .foregroundStyle(AppBrand.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Próxima entrada fixa").font(.caption).foregroundStyle(.secondary)
-                Text(salary.days == 0 ? "Hoje" : "Em \(salary.days) \(salary.days == 1 ? "dia" : "dias")")
-                    .fontWeight(.semibold)
-            }
-            Spacer()
-            Text(AppFormat.money(salary.amount, hidden: hideAmounts))
-                .fontWeight(.semibold)
-                .monospacedDigit()
-        }
+        MenuBarInfoRow(
+            icon: "calendar.badge.clock",
+            title: "Próxima entrada fixa",
+            detail: salary.days == 0 ? "Hoje" : "Em \(salary.days) \(salary.days == 1 ? "dia" : "dias")",
+            amount: salary.amount,
+            hidden: hideAmounts
+        )
     }
 
     private func quickActions(_ month: BudgetMonth) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: MenuBarLayout.actionSpacing) {
             Button {
                 editingExpense = Expense(
                     id: 0, monthID: month.id, recurringID: nil, date: .now,
@@ -260,9 +207,12 @@ struct MenuBarView: View {
                     competenceYear: nil, competenceMonth: nil, notes: "", isRecurring: false
                 )
             } label: {
-                Label("Nova saída", systemImage: "minus.circle").frame(maxWidth: .infinity)
+                Label("Nova saída", systemImage: "minus.circle")
+                    .font(.callout.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: MenuBarLayout.actionMinHeight)
             }
-            .brandAction(prominent: true)
+            .buttonStyle(.plain).pointerCursor()
+            .brandSurface(cornerRadius: MenuBarLayout.actionCorner)
 
             Button {
                 editingIncome = Income(
@@ -271,28 +221,30 @@ struct MenuBarView: View {
                     status: .pending, isFixed: false
                 )
             } label: {
-                Label("Nova entrada", systemImage: "plus.circle").frame(maxWidth: .infinity)
+                Label("Nova entrada", systemImage: "plus.circle")
+                    .font(.callout.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: MenuBarLayout.actionMinHeight)
             }
-            .brandAction()
+            .buttonStyle(.plain).pointerCursor()
+            .brandSurface(cornerRadius: MenuBarLayout.actionCorner)
         }
     }
 
     private var footer: some View {
-        HStack {
-            Button("Abrir Finanças", systemImage: "macwindow", action: openMainWindow)
-                .buttonStyle(.plain)
-            Spacer()
-            Button {
-                assistantMonth = store.selectedMonth
-            } label: {
-                Label("Chat", systemImage: "message.fill")
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .foregroundStyle(AppBrand.forest)
-                    .background(AppBrand.mint, in: Capsule())
+        HStack(spacing: 8) {
+            Button(action: openMainWindow) {
+                Label {
+                    Text("Abrir Finanças")
+                } icon: {
+                    BrandMark()
+                        .frame(width: MenuBarLayout.footerIconSize, height: MenuBarLayout.footerIconSize)
+                        .clipShape(RoundedRectangle(cornerRadius: MenuBarLayout.footerIconSize * 0.28, style: .continuous))
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(store.selectedMonth == nil)
-            .help(store.selectedMonth == nil ? "Crie um mês para usar o assistente" : "Abrir assistente nesta janela")
+            .buttonStyle(.plain).pointerCursor()
+            .font(.callout)
+            .frame(minHeight: MenuBarLayout.clickTarget)
+            Spacer(minLength: 8)
             Menu {
                 Button("Novo mês", systemImage: "calendar.badge.plus") {
                     store.createNextMonth()
@@ -303,31 +255,41 @@ struct MenuBarView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
+                    .frame(width: MenuBarLayout.clickTarget, height: MenuBarLayout.clickTarget)
             }
             .menuStyle(.borderlessButton)
+            .controlSize(.small)
             .fixedSize()
         }
     }
 }
 
-private struct MenuBarMetric: View {
-    let title: String
-    let value: Double
+private struct MenuBarInfoRow: View {
     let icon: String
-    let color: Color
+    let title: String
+    let detail: String
+    let amount: Double
     let hidden: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Label(title, systemImage: icon)
-                .font(.caption)
-                .foregroundStyle(color)
-            Text(AppFormat.money(value, hidden: hidden))
-                .font(.headline)
+        HStack(spacing: MenuBarLayout.infoRowSpacing) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(AppBrand.accent)
+                .frame(width: MenuBarLayout.clickTarget, height: MenuBarLayout.clickTarget)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Text(detail)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            Spacer(minLength: 8)
+            Text(AppFormat.money(amount, hidden: hidden))
+                .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .brandSurface(cornerRadius: 14)
     }
 }

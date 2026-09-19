@@ -59,10 +59,10 @@ struct SettingsView: View {
                     }.padding(8)
                 }
                 GroupBox("Backup") {
-                    VStack(alignment:.leading,spacing:12){Text("O backup é uma cópia completa do arquivo SQLite. Importar substitui todos os dados atuais.").foregroundStyle(.secondary);HStack{Button("Exportar backup…",action:exportBackup);Button("Importar backup…",action:importBackup)}}.padding(8)
+                    VStack(alignment:.leading,spacing:12){Text("O backup é uma cópia completa do arquivo SQLite. Importar substitui todos os dados atuais.").foregroundStyle(.secondary);HStack{Button("Exportar backup…",action:exportBackup).pointerCursor();Button("Importar backup…",action:importBackup).pointerCursor()}}.padding(8)
                 }
                 GroupBox("Banco de dados") {
-                    VStack(alignment:.leading,spacing:8){Text(store.database.url.path).font(.system(.caption,design:.monospaced)).textSelection(.enabled);Button("Mostrar no Finder"){NSWorkspace.shared.activateFileViewerSelecting([store.database.url])}}.padding(8)
+                    VStack(alignment:.leading,spacing:8){Text(store.database.url.path).font(.system(.caption,design:.monospaced)).textSelection(.enabled);Button("Mostrar no Finder"){NSWorkspace.shared.activateFileViewerSelecting([store.database.url])}.pointerCursor()}.padding(8)
                 }
                 GroupBox("Conexão com IA") {
                     VStack(alignment: .leading, spacing: 12) {
@@ -80,6 +80,7 @@ struct SettingsView: View {
                             } label: {
                                 Label(ollamaState.isTesting ? "Testando…" : "Testar conexão", systemImage: "network")
                             }
+                            .pointerCursor()
                             .disabled(ollamaState.isTesting || ollamaBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                             switch ollamaState {
@@ -105,13 +106,13 @@ struct SettingsView: View {
                     }.padding(8)
                 }
                 if store.selectedMonth != nil {
-                    GroupBox("Zona de risco") { HStack{Text("Excluir o mês atual e todos os seus lançamentos.");Spacer();Button("Excluir mês…",role:.destructive){confirmDeleteMonth=true}}.padding(8) }
+                    GroupBox("Zona de risco") { HStack{Text("Excluir o mês atual e todos os seus lançamentos.");Spacer();Button("Excluir mês…",role:.destructive){confirmDeleteMonth=true}.pointerCursor()}.padding(8) }
                 }
             }.padding(24)
         }
         .sheet(item:$editing){RecurringEditor(item:$0)}
         .onDisappear { ollamaTask?.cancel() }
-        .confirmationDialog("Excluir o mês atual?",isPresented:$confirmDeleteMonth,titleVisibility:.visible){Button("Excluir mês",role:.destructive){store.deleteCurrentMonth()};Button("Cancelar",role:.cancel){}} message:{Text("Esta ação não pode ser desfeita.")}
+        .confirmationDialog("Excluir o mês atual?",isPresented:$confirmDeleteMonth,titleVisibility:.visible){Button("Excluir mês",role:.destructive){store.deleteCurrentMonth()}.pointerCursor();Button("Cancelar",role:.cancel){}.pointerCursor()} message:{Text("Esta ação não pode ser desfeita.")}
     }
 
     private func exportBackup() {
