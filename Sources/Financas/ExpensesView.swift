@@ -7,6 +7,7 @@ struct ExpensesView: View {
     @State private var editing: Expense?
     @State private var editingRecurring: RecurringExpense?
     @State private var filter: ExpenseFilter = .all
+    @State private var outflowGrouping: OutflowGrouping = .date
     @State private var confirmInvoice = false
     @State private var showingPrepayment = false
     var mode:Mode = .fixed
@@ -18,7 +19,18 @@ struct ExpensesView: View {
         var total:Double { items.reduce(0) { $0 + $1.amount } }
     }
 
+    private struct DateGroup: Identifiable {
+        let date: Date?
+        let items: [Expense]
+        var id: Date? { date }
+        var total: Double { items.reduce(0) { $0 + $1.amount } }
+    }
+
     enum ExpenseFilter: String, CaseIterable, Identifiable { case all="Todos", invoice="Na fatura", pending="Pendentes", paid="Pagos"; var id:String{rawValue} }
+    private enum OutflowGrouping: String, CaseIterable, Identifiable {
+        case date = "Data", category = "Categoria"
+        var id: String { rawValue }
+    }
     private var modeExpenses:[Expense] { store.expenses.filter { mode == .fixed ? $0.isRecurring : !$0.isRecurring } }
     var filtered: [Expense] {
         switch filter { case .all:return modeExpenses; case .invoice:return modeExpenses.filter{$0.status == .invoice}; case .pending:return modeExpenses.filter{$0.status == .pending}; case .paid:return modeExpenses.filter{[.paid,.prepaid].contains($0.status)} }
@@ -28,12 +40,22 @@ struct ExpensesView: View {
             .map { ExpenseGroup(category:$0.key,items:$0.value.sorted { $0.description.localizedCaseInsensitiveCompare($1.description) == .orderedAscending }) }
             .sorted { $0.category.localizedCaseInsensitiveCompare($1.category) == .orderedAscending }
     }
+    private var dateGroups: [DateGroup] {
+        Dictionary(grouping: filtered) { $0.date.map { Calendar.current.startOfDay(for: $0) } }
+            .map { DateGroup(date: $0.key, items: $0.value.sorted { $0.id > $1.id }) }
+            .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
 
     var body: some View {
         if let month = store.selectedMonth {
             VStack(spacing:0) {
-                ScreenHeader(mode == .fixed ? "Gastos fixos" : "Saídas", subtitle:mode == .fixed ? "Despesas recorrentes agrupadas por categoria" : "Gastos pontuais agrupados por categoria") {
-                    Picker("Filtro",selection:$filter){ForEach(ExpenseFilter.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).pointerCursor().frame(width:430)
+                ScreenHeader(mode == .fixed ? "Gastos fixos" : "Saídas", subtitle:mode == .fixed ? "Despesas recorrentes agrupadas por categoria" : "Gastos pontuais por data ou categoria") {
+                    Picker("Filtro",selection:$filter){ForEach(ExpenseFilter.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).pointerCursor().frame(width:mode == .fixed ? 430 : 330)
+                    if mode == .outflows {
+                        Picker("Visualizar por", selection: $outflowGrouping) {
+                            ForEach(OutflowGrouping.allCases) { Text($0.rawValue).tag($0) }
+                        }.pickerStyle(.menu).labelsHidden().pointerCursor().frame(width:125).help("Visualizar saídas por data ou categoria")
+                    }
                     if mode == .fixed {
                         Button { editingRecurring=RecurringExpense(id:0,description:"",category:"Outros",amount:0,dueDay:nil,paymentMethod:.pix,notes:"",active:true) } label:{Label("Novo gasto fixo",systemImage:"plus")}
                     } else {
@@ -45,11 +67,21 @@ struct ExpensesView: View {
                     ScrollView(.horizontal) { expenseSummary.fixedSize(horizontal: true, vertical: false) }
                 }.padding(.horizontal,24).padding(.bottom,12)
                 List {
-                    ForEach(groups) { group in
-                        Section {
-                            ForEach(group.items) { expenseRow($0, showCategory:false) }
-                        } header: {
-                            HStack { Text(group.category);Spacer();Text(AppFormat.money(group.total, hidden: hideAmounts)).monospacedDigit() }
+                    if mode == .outflows && outflowGrouping == .date {
+                        ForEach(dateGroups) { group in
+                            Section {
+                                ForEach(group.items) { expenseRow($0, showCategory: true) }
+                            } header: {
+                                HStack { Text(group.date.map { AppFormat.date.string(from: $0) } ?? "Sem data"); Spacer(); Text(AppFormat.money(group.total, hidden: hideAmounts)).monospacedDigit() }
+                            }
+                        }
+                    } else {
+                        ForEach(groups) { group in
+                            Section {
+                                ForEach(group.items) { expenseRow($0, showCategory: false) }
+                            } header: {
+                                HStack { Text(group.category);Spacer();Text(AppFormat.money(group.total, hidden: hideAmounts)).monospacedDigit() }
+                            }
                         }
                     }
                 }
