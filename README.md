@@ -12,6 +12,14 @@
   <p><a href="#your-month-in-one-place">Features</a> · <a href="#local-ai-assistant">Local AI</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#iphone">iPhone</a> · <a href="#your-data">Data and backup</a></p>
 </div>
 
+<p align="center">
+  <img src="docs/images/macos-resumo.png" alt="Finanças on the Mac: the summary screen with the current balance, pending payments, expected income and spending by category" width="900">
+</p>
+
+<p align="center">
+  <img src="docs/images/ios-screens.png" alt="Finanças on the iPhone: summary, outflows, income and investments screens" width="900">
+</p>
+
 ---
 
 ## Your month in one place
@@ -141,6 +149,8 @@ Interface in **SwiftUI**, charts with **Swift Charts**, macOS integration throug
 ```bash
 swift test
 ```
+
+To run the app against another database, for demos or screenshots, set `FINANCAS_DATABASE` to the path of a `.sqlite` file. Your real data is left untouched.
 
 The icon is drawn in code. To regenerate the PNG and ICNS files used by the app:
 

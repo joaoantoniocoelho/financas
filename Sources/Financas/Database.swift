@@ -35,6 +35,10 @@ final class Database {
     deinit { sqlite3_close(handle) }
 
     static var defaultURL: URL {
+        // Demos and screenshots can point the app at another file without touching real data.
+        if let path = ProcessInfo.processInfo.environment["FINANCAS_DATABASE"], !path.isEmpty {
+            return URL(fileURLWithPath: path)
+        }
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Financas", isDirectory: true).appendingPathComponent("financas.sqlite")
     }
