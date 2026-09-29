@@ -1,18 +1,28 @@
-import AppKit
 import SwiftUI
+#if os(macOS)
+import AppKit
+private typealias PlatformColor = NSColor
+#else
+import UIKit
+private typealias PlatformColor = UIColor
+#endif
 
 enum AppBrand {
-    static let accent = adaptive(light: NSColor(red: 0.035, green: 0.38, blue: 0.26, alpha: 1), dark: NSColor(red: 0.48, green: 0.77, blue: 0.59, alpha: 1))
+    static let accent = adaptive(light: PlatformColor(red: 0.035, green: 0.38, blue: 0.26, alpha: 1), dark: PlatformColor(red: 0.48, green: 0.77, blue: 0.59, alpha: 1))
     static let evergreen = Color(red: 0.035, green: 0.38, blue: 0.26)
     static let forest = Color(red: 0.055, green: 0.19, blue: 0.16)
     static let mint = Color(red: 0.76, green: 0.91, blue: 0.64)
-    static let amber = adaptive(light: NSColor(red: 0.66, green: 0.36, blue: 0.12, alpha: 1), dark: NSColor(red: 0.91, green: 0.68, blue: 0.39, alpha: 1))
-    static let canvas = adaptive(light: NSColor(red: 0.96, green: 0.95, blue: 0.92, alpha: 1), dark: NSColor(red: 0.10, green: 0.13, blue: 0.12, alpha: 1))
-    static let surface = adaptive(light: NSColor(red: 1, green: 0.995, blue: 0.98, alpha: 1), dark: NSColor(red: 0.15, green: 0.18, blue: 0.17, alpha: 1))
-    private static func adaptive(light: NSColor, dark: NSColor) -> Color {
+    static let amber = adaptive(light: PlatformColor(red: 0.66, green: 0.36, blue: 0.12, alpha: 1), dark: PlatformColor(red: 0.91, green: 0.68, blue: 0.39, alpha: 1))
+    static let canvas = adaptive(light: PlatformColor(red: 0.96, green: 0.95, blue: 0.92, alpha: 1), dark: PlatformColor(red: 0.10, green: 0.13, blue: 0.12, alpha: 1))
+    static let surface = adaptive(light: PlatformColor(red: 1, green: 0.995, blue: 0.98, alpha: 1), dark: PlatformColor(red: 0.15, green: 0.18, blue: 0.17, alpha: 1))
+    private static func adaptive(light: PlatformColor, dark: PlatformColor) -> Color {
+        #if os(macOS)
         Color(nsColor: NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? dark : light
         })
+        #else
+        Color(uiColor: UIColor { traits in traits.userInterfaceStyle == .dark ? dark : light })
+        #endif
     }
     static let chartColors: [Color] = [
         accent,
@@ -24,6 +34,7 @@ enum AppBrand {
     ]
 }
 
+#if os(macOS)
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = AppStore()
@@ -82,37 +93,63 @@ final class MainWindowController: NSObject, ObservableObject, NSWindowDelegate {
         return false
     }
 }
+#endif
 
 private struct LaunchScreenView<Content: View>: View {
+    /// Set when the app is opened for a specific task (a widget shortcut): go straight in.
+    var skip = false
     @ViewBuilder let content: () -> Content
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShowingSplash = true
 
     var body: some View {
         ZStack {
-            content()
-                .opacity(isShowingSplash ? 0 : 1)
+            // Mounted as the splash leaves, so the screen's entrance animations play in view.
+            if !isShowingSplash {
+                content()
+                    .transition(.opacity)
+            }
 
             if isShowingSplash {
                 SplashView()
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .identity, removal: .opacity.combined(with: .scale(scale: 1.05))))
+                    .zIndex(1)
             }
         }
+        #if os(iOS)
+        .statusBarHidden(isShowingSplash)
+        #endif
+        .onChange(of: skip) { _, skip in
+            guard skip, isShowingSplash else { return }
+            withAnimation(.easeOut(duration: 0.25)) { isShowingSplash = false }
+        }
         .task {
-            try? await Task.sleep(for: .seconds(1.25))
+            try? await Task.sleep(for: .seconds(skip ? 0 : (reduceMotion ? 0.9 : 2.0)))
             guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.32)) {
+            withAnimation(.easeInOut(duration: reduceMotion ? 0.3 : 0.45)) {
                 isShowingSplash = false
             }
         }
     }
 }
 
+/// Draws the app mark in sequence: tile, ring, then the rising arrow, followed by the wordmark.
 private struct SplashView: View {
-    @State private var iconScale: CGFloat = 0.88
-    @State private var iconOpacity = 0.0
+    /// Matches the iOS launch screen color (LaunchBackground), so the hand-off is seamless.
+    static let launchBackground = Color(red: 0.015, green: 0.17, blue: 0.12)
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var backdrop = false
+    @State private var tile = false
+    @State private var ring: CGFloat = 0
+    @State private var arrow: CGFloat = 0
+    @State private var glow = false
+    @State private var wordmark = false
+    @State private var footer = false
 
     var body: some View {
         ZStack {
+            Self.launchBackground
             LinearGradient(
                 colors: [
                     Color(red: 0.015, green: 0.12, blue: 0.085),
@@ -122,33 +159,122 @@ private struct SplashView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
+            .opacity(backdrop ? 1 : 0)
 
-            VStack(spacing: 18) {
-                BrandMark()
-                    .frame(width: 116, height: 116)
-                    .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-                    .shadow(color: .black.opacity(0.28), radius: 18, y: 10)
-                    .scaleEffect(iconScale)
-                    .opacity(iconOpacity)
-
-                Text("Finanças").font(.system(size: 38, weight: .semibold, design: .serif)).foregroundStyle(.white)
-                Text("Mais clareza. Mais possibilidades.").foregroundStyle(AppBrand.mint)
-
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.white.opacity(0.88))
+            ForEach([300.0, 470.0, 660.0], id: \.self) { diameter in
+                Circle()
+                    .stroke(AppBrand.mint.opacity(0.06), lineWidth: 1)
+                    .frame(width: diameter, height: diameter)
+                    .scaleEffect(backdrop ? 1 : 0.82)
+                    .opacity(backdrop ? 1 : 0)
             }
+            .offset(y: -40)
+
+            RadialGradient(colors: [AppBrand.mint.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: 210)
+                .frame(width: 420, height: 420)
+                .scaleEffect(glow ? 1 : 0.5)
+                .opacity(glow ? 1 : 0)
+                .offset(y: -40)
+
+            VStack(spacing: 0) {
+                Spacer()
+                SplashMark(ring: ring, arrow: arrow)
+                    .frame(width: 124, height: 124)
+                    .shadow(color: .black.opacity(0.35), radius: 24, y: 14)
+                    .scaleEffect(tile ? 1 : 0.84)
+                    .opacity(tile ? 1 : 0)
+                VStack(spacing: 10) {
+                    Text("Finanças")
+                        .font(.system(size: 40, weight: .semibold, design: .serif))
+                        .foregroundStyle(.white)
+                    Text("Mais clareza. Mais possibilidades.")
+                        .font(.callout)
+                        .foregroundStyle(AppBrand.mint.opacity(0.9))
+                }
+                .padding(.top, 28)
+                .opacity(wordmark ? 1 : 0)
+                .offset(y: wordmark ? 0 : 12)
+                .offset(y: 40)
+                Spacer()
+                Label("Seus dados ficam neste dispositivo", systemImage: "lock.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .opacity(footer ? 1 : 0)
+                    .padding(.bottom, 40)
+            }
+            .offset(y: -40)
         }
+        #if os(iOS)
+        .ignoresSafeArea()
+        #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
-                iconScale = 1
-                iconOpacity = 1
-            }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Finanças")
+        .onAppear(perform: animate)
+    }
+
+    private func animate() {
+        guard !reduceMotion else {
+            backdrop = true; tile = true; ring = 1; arrow = 1; glow = true; wordmark = true; footer = true
+            return
         }
+        withAnimation(.easeOut(duration: 0.6)) { backdrop = true }
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.8)) { tile = true }
+        withAnimation(.easeInOut(duration: 0.7).delay(0.15)) { ring = 1 }
+        withAnimation(.easeOut(duration: 0.4).delay(0.65)) { arrow = 1 }
+        withAnimation(.easeOut(duration: 0.9).delay(0.75)) { glow = true }
+        withAnimation(.easeOut(duration: 0.5).delay(0.85)) { wordmark = true }
+        withAnimation(.easeOut(duration: 0.5).delay(1.15)) { footer = true }
     }
 }
 
+/// The app icon's geometry (see scripts/generate-icon.swift), with ring and arrow drawn progressively.
+private struct SplashMark: View {
+    var ring: CGFloat
+    var arrow: CGFloat
+
+    var body: some View {
+        GeometryReader { geometry in
+            let side = min(geometry.size.width, geometry.size.height)
+            let unit = side / 896
+            let stroke = StrokeStyle(lineWidth: 54 * unit, lineCap: .round, lineJoin: .round)
+            ZStack {
+                RoundedRectangle(cornerRadius: 220 * unit, style: .continuous)
+                    .fill(LinearGradient(colors: [Color(red: 0.08, green: 0.31, blue: 0.24), Color(red: 0.04, green: 0.16, blue: 0.14)],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                RoundedRectangle(cornerRadius: 220 * unit, style: .continuous)
+                    .strokeBorder(.white.opacity(0.1), lineWidth: 1)
+                Circle()
+                    .trim(from: 0, to: 0.75 * ring)
+                    .stroke(AppBrand.mint, style: stroke)
+                    .frame(width: 480 * unit, height: 480 * unit)
+                    .opacity(ring > 0 ? 1 : 0)
+                SplashArrow()
+                    .trim(from: 0, to: arrow)
+                    .stroke(AppBrand.mint, style: stroke)
+                    .opacity(arrow > 0 ? 1 : 0)
+            }
+            .frame(width: side, height: side)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct SplashArrow: Shape {
+    func path(in rect: CGRect) -> Path {
+        let unit = min(rect.width, rect.height) / 896
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * unit, y: rect.minY + y * unit) }
+        var path = Path()
+        path.move(to: point(361, 535))
+        path.addLine(to: point(596, 300))
+        path.move(to: point(426, 300))
+        path.addLine(to: point(596, 300))
+        path.addLine(to: point(596, 470))
+        return path
+    }
+}
+
+#if os(macOS)
 @main
 struct FinancasApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -167,3 +293,22 @@ struct FinancasApp: App {
         .menuBarExtraStyle(.window)
     }
 }
+#else
+@main
+struct FinancasApp: App {
+    @StateObject private var store = AppStore()
+    @StateObject private var router = QuickActionRouter()
+
+    var body: some Scene {
+        WindowGroup {
+            LaunchScreenView(skip: router.pending != nil) {
+                ContentView()
+            }
+            .environmentObject(store)
+            .environmentObject(router)
+            .tint(AppBrand.accent)
+            .onOpenURL { router.open($0) }
+        }
+    }
+}
+#endif

@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 import SwiftUI
 
@@ -293,3 +294,4 @@ private struct MenuBarInfoRow: View {
         }
     }
 }
+#endif

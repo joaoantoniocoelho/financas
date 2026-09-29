@@ -103,11 +103,16 @@ struct AIExpenseView: View {
                 if text.count > 4000 { Text("Use até 4.000 caracteres por mensagem.").font(.caption).foregroundStyle(.red) }
             }.padding(14)
         }
+        #if os(macOS)
         .frame(width: panelWidth, height: 540)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
         .clipShape(RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(.primary.opacity(0.1)))
         .shadow(radius: 18, y: 8)
+        #else
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background { BrandBackground() }
+        #endif
         .onDisappear { task?.cancel() }
     }
 

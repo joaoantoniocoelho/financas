@@ -7,3 +7,5 @@ dist/
 *.sqlite-shm
 .env
 .env.*
+xcuserdata/
+*.xcuserstate

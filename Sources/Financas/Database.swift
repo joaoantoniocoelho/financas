@@ -1,5 +1,9 @@
 import Foundation
+#if canImport(CSQLite)
 import CSQLite
+#else
+import SQLite3
+#endif
 
 enum DatabaseError: LocalizedError {
     case message(String)
@@ -164,8 +168,10 @@ final class Database {
         DatabaseError.message(String(cString: sqlite3_errmsg(handle)))
     }
 
+    /// Dates are stored as calendar days ("2026-09-26") in the user's time zone. The formatter's
+    /// default is UTC, which shifted days backwards in Brazil and saved late-evening entries as the next day.
     private static let iso: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter(); f.formatOptions = [.withFullDate]; return f
+        let f = ISO8601DateFormatter(); f.formatOptions = [.withFullDate]; f.timeZone = .current; return f
     }()
     private func text(_ statement: OpaquePointer, _ column: Int32) -> String {
         guard let raw = sqlite3_column_text(statement, column) else { return "" }

@@ -2,13 +2,14 @@
   <img src="Resources/AppIcon.png" alt="Finanças icon: an upward arrow inside an open circle" width="128" height="128">
   <h1>Finanças</h1>
   <p><strong>Your money, with clarity.</strong></p>
-  <p>A native app to organize your month, track expenses, and plan what comes next.<br>No account, no server. Your data stays on your Mac.</p>
+  <p>A native app to organize your month, track expenses, and plan what comes next.<br>No account, no server. Your data stays on your Mac and iPhone.</p>
   <p>
     <img src="https://img.shields.io/badge/macOS-14%2B-184D3D?style=flat-square" alt="macOS 14 or later">
+    <img src="https://img.shields.io/badge/iOS-17%2B-184D3D?style=flat-square" alt="iOS 17 or later">
     <img src="https://img.shields.io/badge/interface-SwiftUI-184D3D?style=flat-square" alt="SwiftUI interface">
     <img src="https://img.shields.io/badge/data-local_SQLite-184D3D?style=flat-square" alt="Data in local SQLite">
   </p>
-  <p><a href="#your-month-in-one-place">Features</a> · <a href="#local-ai-assistant">Local AI</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#your-data">Data and backup</a></p>
+  <p><a href="#your-month-in-one-place">Features</a> · <a href="#local-ai-assistant">Local AI</a> · <a href="#start-here">How to run</a> · <a href="#build-the-app">Build</a> · <a href="#iphone">iPhone</a> · <a href="#your-data">Data and backup</a></p>
 </div>
 
 ---
@@ -78,6 +79,36 @@ swift build -c release
 
 It will be at `.build/release/Financas`. Distribution to other Macs requires proper signing and notarization; the script uses an *ad hoc* signature for local use.
 
+## iPhone
+
+The same sources also build an iOS app from `iOS/Financas.xcodeproj`. It shares every screen with the Mac, arranged for a phone: four tabs (Summary, Expenses, Income, Investments) around a raised **+** button that records an outflow, an income, a fixed expense or an investment movement, or opens the assistant. Expenses switches between the month's outflows and fixed expenses. The month, the eye button and Settings are in the navigation bar, and forms open as half-height bottom sheets.
+
+A medium home screen widget offers three shortcuts: **Resumo** opens the summary, and **Saída** and **Entrada** open the app straight into the matching form. It shows no amounts, so nothing about your money is visible on the home screen. The menu bar panel exists only on the Mac.
+
+### Install from Xcode
+
+1. Open `iOS/Financas.xcodeproj`.
+2. In **Signing & Capabilities**, choose your team (a free Apple ID works). If the bundle identifier is taken, change it once and keep it: a new identifier means a new, empty app.
+3. Connect the iPhone, enable **Developer Mode** on it, and press **⌘R**.
+
+With a free account the signature expires after 7 days: the app stops opening, but its data stays on the phone. Running it again from Xcode updates it in place and keeps the data. **Deleting the app deletes its database.**
+
+### Install with SideStore or AltStore
+
+To avoid rebuilding every week, build an unsigned package and let SideStore or AltStore sign and refresh it on the phone:
+
+```bash
+./scripts/build-ipa.sh
+```
+
+The result is at **`dist/Financas.ipa`**. These tools register their own copy of the app, so move your data with a backup: export it from the old copy, then import it into the new one.
+
+### Moving data between devices
+
+The Mac and the iPhone keep separate databases; nothing is synced. To copy one to the other, use **Settings → Backup**: export on one device, send the file with AirDrop or iCloud Drive, and import it on the other. Importing replaces all data on that device.
+
+The local AI assistant on the iPhone needs an Ollama server that the phone can reach on the local network. Set its address in Settings.
+
 ## How balances work
 
 The current balance starts from the amount you enter and tracks completed transactions:
@@ -93,13 +124,13 @@ The emergency reserve is displayed in months of coverage, using the balance of t
 
 ## Your data
 
-The SQLite database is at this path:
+On the Mac, the SQLite database is at this path:
 
 ```text
 ~/Library/Application Support/Financas/financas.sqlite
 ```
 
-In **Settings**, you can reveal the file in Finder, export a backup, or import a copy. **Importing replaces the current data.** The database and `.sqlite` backups are ignored by Git.
+On the iPhone, it lives inside the app's own storage. In **Settings**, you can export a backup, import a copy, or, on the Mac, reveal the file in Finder. **Importing replaces the current data.** The database and `.sqlite` backups are ignored by Git.
 
 This is a personal project: the first launch creates the structure, default data, and funds with the opening balances defined in [`Database.swift`](Sources/Financas/Database.swift). It does not create months or cash transactions. Review these values before using the project for your own finances.
 

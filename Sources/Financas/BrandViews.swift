@@ -1,4 +1,6 @@
+#if os(macOS)
 import AppKit
+#endif
 import SwiftUI
 
 private struct CompactMenuDismissKey: EnvironmentKey { static let defaultValue: () -> Void = {} }
@@ -12,6 +14,14 @@ extension EnvironmentValues {
 struct CompactActionMenu<Content: View>: View {
     @State private var presented = false
     @ViewBuilder let content: () -> Content
+    #if os(iOS)
+    var body: some View {
+        Menu { content() } label: {
+            Image(systemName: "ellipsis").font(.system(size: 15, weight: .bold)).frame(width: 36, height: 36).contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless).accessibilityLabel("Mais ações")
+    }
+    #else
     var body: some View {
         Button { presented.toggle() } label: {
             Image(systemName: "ellipsis").font(.system(size: 13, weight: .bold)).frame(width: 28, height: 28)
@@ -23,6 +33,7 @@ struct CompactActionMenu<Content: View>: View {
                 .environment(\.compactMenuDismiss, { presented = false })
         }
     }
+    #endif
 }
 
 struct CompactMenuItem: View {
@@ -30,13 +41,18 @@ struct CompactMenuItem: View {
     let title: String; let role: ButtonRole?; let action: () -> Void
     init(_ title: String, role: ButtonRole? = nil, action: @escaping () -> Void) { self.title = title; self.role = role; self.action = action }
     var body: some View {
+        #if os(iOS)
+        Button(title, role: role, action: action)
+        #else
         Group {
             if let role { Button(title, role: role) { dismiss(); action() } }
             else { Button(title) { dismiss(); action() } }
         }.buttonStyle(.borderless).pointerCursor().frame(maxWidth: .infinity, alignment: .leading)
+        #endif
     }
 }
 
+#if os(macOS)
 extension AppBrand {
     /// Template artwork lets macOS choose the correct color for the menu bar.
     static let menuBarIcon: NSImage = {
@@ -66,6 +82,7 @@ extension AppBrand {
         return image
     }()
 }
+#endif
 
 /// A rising path within an open circle: room to grow.
 struct BrandMark: View {
@@ -131,7 +148,7 @@ struct BrandGlassControls<Content: View>: View {
     var spacing: CGFloat = 16
     @ViewBuilder let content: () -> Content
     var body: some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, iOS 26.0, *) {
             GlassEffectContainer(spacing: spacing) { content() }
         } else {
             content()
@@ -143,7 +160,7 @@ private struct BrandActionStyle: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     let prominent: Bool
     @ViewBuilder func body(content: Content) -> some View {
-        if #available(macOS 26.0, *), !reduceTransparency {
+        if #available(macOS 26.0, iOS 26.0, *), !reduceTransparency {
             if prominent {
                 content.buttonStyle(.glassProminent).pointerCursor()
             } else {
@@ -158,7 +175,8 @@ private struct BrandActionStyle: ViewModifier {
 }
 
 extension View {
-    func pointerCursor() -> some View {
+    @ViewBuilder func pointerCursor() -> some View {
+        #if os(macOS)
         onHover { hovering in
             if hovering {
                 NSCursor.pointingHand.set()
@@ -166,6 +184,9 @@ extension View {
                 NSCursor.arrow.set()
             }
         }
+        #else
+        self
+        #endif
     }
 
     func brandSurface(cornerRadius: CGFloat = 20) -> some View {

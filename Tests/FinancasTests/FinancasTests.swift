@@ -77,6 +77,20 @@ final class FinancasTests: XCTestCase {
         XCTAssertEqual(store.investmentFunds.first(where:{$0.name == "Viagem"})?.countsAsInvestment,false)
     }
 
+    func testDatesKeepTheirLocalCalendarDay() throws {
+        let database = try makeDatabase()
+        let monthID = try database.createMonth(year: 2026, month: 9)
+        let calendar = Calendar.current
+        for hour in [0, 14, 23] {
+            let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 26, hour: hour, minute: 30)))
+            try database.saveExpense(Expense(id: 0, monthID: monthID, recurringID: nil, date: date, description: "Às \(hour)h", category: "Outros", amount: 10, paymentMethod: .pix, status: .pending, competenceYear: nil, competenceMonth: nil, notes: "", isRecurring: false))
+        }
+        for expense in try database.expenses(monthID: monthID) {
+            let saved = try XCTUnwrap(expense.date)
+            XCTAssertEqual(calendar.dateComponents([.year, .month, .day], from: saved), DateComponents(year: 2026, month: 9, day: 26), expense.description)
+        }
+    }
+
     func testPayInvoiceMovesCardChargesToPaid() throws {
         let database = try makeDatabase()
         let monthID = try database.createMonth(year: 2026, month: 9)
