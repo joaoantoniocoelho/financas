@@ -13,13 +13,12 @@
 </div>
 
 <p align="center">
-  <img src="docs/images/macos-resumo.png" alt="Finanças on the Mac: the summary screen with the current balance, pending payments, expected income and spending by category" width="900">
-</p>
-
-<p align="center">
   <img src="docs/images/ios-screens.png" alt="Finanças on the iPhone: summary, outflows, income and investments screens" width="900">
 </p>
 
+<p align="center">
+  <img src="docs/images/macos-resumo.png" alt="Finanças on the Mac: the summary screen with the current balance, pending payments, expected income and spending by category" width="900">
+</p>
 ---
 
 ## Your month in one place
