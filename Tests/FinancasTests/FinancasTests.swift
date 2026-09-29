@@ -41,6 +41,16 @@ final class FinancasTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance,2000,accuracy:0.001)
     }
 
+    func testInvestmentMovementCanBeRecordedWithoutChangingAlreadyReconciledAccountBalance() throws {
+        let database=try makeDatabase()
+        let monthID=try database.createMonth(year:2026,month:9,initialBalance:2000)
+        let occam=try XCTUnwrap(database.investmentFunds().first(where:\.isEmergencyReserve))
+
+        try database.saveInvestmentMovement(InvestmentMovement(id:0,monthID:monthID,fundID:occam.id,date:date(2026,9,21),kind:.withdrawal,amount:500,notes:"Emergência",balanceApplied:false))
+        XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance,2000,accuracy:0.001)
+        XCTAssertEqual(try XCTUnwrap(database.investmentFunds().first(where:{$0.id == occam.id})).currentBalance,8032.58,accuracy:0.001)
+    }
+
     @MainActor
     func testNextSalaryUsesNearestPendingFixedIncome() throws {
         let database=try makeDatabase()

@@ -129,6 +129,7 @@ struct InvestmentMovement: Identifiable {
     var kind: InvestmentMovementKind
     var amount: Double
     var notes: String
+    var balanceApplied: Bool = true
 }
 
 struct NextSalary {

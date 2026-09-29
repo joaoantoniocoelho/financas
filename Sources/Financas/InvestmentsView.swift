@@ -140,6 +140,7 @@ struct InvestmentMovementEditor:View {
             DatePicker("Data",selection:$item.date,displayedComponents:.date)
             TextField("Valor",value:$item.amount,format:.number)
             TextField("Observação (opcional)",text:$item.notes)
+            Toggle("Já refletido no saldo da conta",isOn:Binding(get:{!item.balanceApplied},set:{item.balanceApplied = !$0}))
             Text(item.kind == .contribution ? "O aporte será descontado do saldo atual da conta e somado ao fundo." : "O resgate será retirado do fundo e somado ao saldo atual da conta.")
                 .font(.caption).foregroundStyle(.secondary)
             EditorButtons(saveEnabled:item.amount > 0 && store.investmentFunds.contains(where:{$0.id == item.fundID})) {

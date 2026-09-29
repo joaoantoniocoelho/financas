@@ -429,11 +429,11 @@ final class Database {
 
     func investmentMovements(monthID:Int64) throws -> [InvestmentMovement] {
         var result:[InvestmentMovement] = []
-        try rows("SELECT id,month_id,fund_id,date,kind,amount,notes FROM investment_movements WHERE month_id=? ORDER BY date DESC,id DESC",bindings:[monthID]) { s in
+        try rows("SELECT id,month_id,fund_id,date,kind,amount,notes,balance_applied FROM investment_movements WHERE month_id=? ORDER BY date DESC,id DESC",bindings:[monthID]) { s in
             result.append(InvestmentMovement(
                 id:sqlite3_column_int64(s,0), monthID:sqlite3_column_int64(s,1), fundID:sqlite3_column_int64(s,2),
                 date:optionalDate(s,3) ?? .now, kind:InvestmentMovementKind(rawValue:text(s,4)) ?? .contribution,
-                amount:sqlite3_column_double(s,5), notes:text(s,6)
+                amount:sqlite3_column_double(s,5), notes:text(s,6), balanceApplied:sqlite3_column_int(s,7) != 0
             ))
         }
         return result
@@ -452,12 +452,12 @@ final class Database {
         try execute("BEGIN")
         do {
             if let old {
-                try adjustBalance(monthID:old.monthID,by:-accountEffect(kind:old.kind,amount:old.amount))
-                try execute("UPDATE investment_movements SET month_id=?,fund_id=?,date=?,kind=?,amount=?,notes=?,balance_applied=1 WHERE id=?",bindings:[item.monthID,item.fundID,item.date,item.kind.rawValue,item.amount,item.notes,item.id])
+                if old.balanceApplied { try adjustBalance(monthID:old.monthID,by:-accountEffect(kind:old.kind,amount:old.amount)) }
+                try execute("UPDATE investment_movements SET month_id=?,fund_id=?,date=?,kind=?,amount=?,notes=?,balance_applied=? WHERE id=?",bindings:[item.monthID,item.fundID,item.date,item.kind.rawValue,item.amount,item.notes,item.balanceApplied,item.id])
             } else {
-                try execute("INSERT INTO investment_movements(month_id,fund_id,date,kind,amount,notes,balance_applied) VALUES(?,?,?,?,?,?,1)",bindings:[item.monthID,item.fundID,item.date,item.kind.rawValue,item.amount,item.notes])
+                try execute("INSERT INTO investment_movements(month_id,fund_id,date,kind,amount,notes,balance_applied) VALUES(?,?,?,?,?,?,?)",bindings:[item.monthID,item.fundID,item.date,item.kind.rawValue,item.amount,item.notes,item.balanceApplied])
             }
-            try adjustBalance(monthID:item.monthID,by:accountEffect(kind:item.kind,amount:item.amount))
+            if item.balanceApplied { try adjustBalance(monthID:item.monthID,by:accountEffect(kind:item.kind,amount:item.amount)) }
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -470,7 +470,7 @@ final class Database {
         try execute("BEGIN")
         do {
             try execute("DELETE FROM investment_movements WHERE id=?",bindings:[id])
-            try adjustBalance(monthID:old.monthID,by:-accountEffect(kind:old.kind,amount:old.amount))
+            if old.balanceApplied { try adjustBalance(monthID:old.monthID,by:-accountEffect(kind:old.kind,amount:old.amount)) }
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -487,10 +487,10 @@ final class Database {
         return value
     }
 
-    private func investmentMovementRecord(id:Int64) throws -> (monthID:Int64,fundID:Int64,kind:InvestmentMovementKind,amount:Double) {
-        var value:(Int64,Int64,InvestmentMovementKind,Double)?
-        try rows("SELECT month_id,fund_id,kind,amount FROM investment_movements WHERE id=?",bindings:[id]) { s in
-            value=(sqlite3_column_int64(s,0),sqlite3_column_int64(s,1),InvestmentMovementKind(rawValue:text(s,2)) ?? .contribution,sqlite3_column_double(s,3))
+    private func investmentMovementRecord(id:Int64) throws -> (monthID:Int64,fundID:Int64,kind:InvestmentMovementKind,amount:Double,balanceApplied:Bool) {
+        var value:(Int64,Int64,InvestmentMovementKind,Double,Bool)?
+        try rows("SELECT month_id,fund_id,kind,amount,balance_applied FROM investment_movements WHERE id=?",bindings:[id]) { s in
+            value=(sqlite3_column_int64(s,0),sqlite3_column_int64(s,1),InvestmentMovementKind(rawValue:text(s,2)) ?? .contribution,sqlite3_column_double(s,3),sqlite3_column_int(s,4) != 0)
         }
         guard let value else { throw DatabaseError.message("Movimentação não encontrada.") }
         return value
