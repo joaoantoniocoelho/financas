@@ -336,7 +336,7 @@ final class Database {
     func saveExpenseBatch(_ items: [Expense]) throws {
         guard !items.isEmpty, items.count <= 30,
               items.allSatisfy({ $0.id == 0 && !$0.isRecurring && $0.amount.isFinite && $0.amount > 0 && !$0.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
-            throw DatabaseError.message("Lote de despesas inválido.")
+            throw DatabaseError.message("Não consegui entender essa lista de gastos. Tente de novo.")
         }
         try execute("SAVEPOINT expense_batch")
         do {
@@ -386,7 +386,7 @@ final class Database {
 
     func payInvoice(monthID: Int64, status: ExpenseStatus = .paid) throws {
         guard status == .paid || status == .prepaid else {
-            throw DatabaseError.message("Status inválido para quitar a fatura.")
+            throw DatabaseError.message("Esse gasto não está na fatura, então não dá para quitá-lo por aqui.")
         }
         var total = 0.0
         let prepaid = try invoicePrepaidAmount(monthID: monthID)
@@ -397,13 +397,13 @@ final class Database {
     }
 
     func prepayInvoice(monthID: Int64, amount: Double) throws {
-        guard amount > 0 else { throw DatabaseError.message("Informe um valor maior que zero.") }
+        guard amount > 0 else { throw DatabaseError.message("Qual é o valor? Ele precisa ser maior que zero.") }
         var total = 0.0
         try rows("SELECT COALESCE(SUM(amount),0) FROM monthly_expenses WHERE month_id=? AND status='Na fatura' AND balance_applied=0", bindings:[monthID]) { total = sqlite3_column_double($0,0) }
         let prepaid = try invoicePrepaidAmount(monthID: monthID)
         let remaining = total - prepaid
         guard amount <= remaining + 0.005 else {
-            throw DatabaseError.message("O valor não pode ser maior que o restante da fatura.")
+            throw DatabaseError.message("Esse valor passa do que falta pagar na fatura. Quer ajustar?")
         }
 
         if abs(amount - remaining) <= 0.005 {
@@ -467,10 +467,10 @@ final class Database {
     /// adjusted so it holds with the existing movements, without recording a contribution or touching the account.
     func saveInvestmentFund(_ item:InvestmentFund) throws {
         let name = item.name.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard !name.isEmpty else { throw DatabaseError.message("Informe o nome do investimento.") }
+        guard !name.isEmpty else { throw DatabaseError.message("Que nome damos a esse investimento?") }
         var duplicate = false
         try rows("SELECT 1 FROM investment_funds WHERE lower(name)=lower(?) AND id<>?",bindings:[name,item.id]) { _ in duplicate = true }
-        guard !duplicate else { throw DatabaseError.message("Já existe um investimento chamado \(name).") }
+        guard !duplicate else { throw DatabaseError.message("Você já tem um investimento chamado \(name). Que tal outro nome?") }
         // Movements are in reais, so they can't be mixed into a balance held in another currency.
         if item.foreignCurrency != nil, item.id != 0, try movementCount(fundID:item.id) > 0 {
             throw DatabaseError.message("Esse investimento tem movimentações em reais. Exclua as movimentações antes de mudá-lo para moeda estrangeira.")
@@ -516,7 +516,7 @@ final class Database {
     }
 
     func saveInvestmentMovement(_ item:InvestmentMovement) throws {
-        guard item.amount > 0 else { throw DatabaseError.message("Informe um valor maior que zero.") }
+        guard item.amount > 0 else { throw DatabaseError.message("Qual é o valor? Ele precisa ser maior que zero.") }
         var foreign = false
         try rows("SELECT 1 FROM investment_funds WHERE id=? AND asset_type=?",bindings:[item.fundID,InvestmentAssetType.currency.rawValue]) { _ in foreign = true }
         guard !foreign else { throw DatabaseError.message("Investimentos em moeda estrangeira não recebem aportes nem resgates. Atualize o saldo editando o investimento.") }
@@ -525,7 +525,7 @@ final class Database {
         let newFundEffect = fundEffect(kind:item.kind,amount:item.amount)
         let available = try investmentFundBalance(id:item.fundID) - (old?.fundID == item.fundID ? oldFundEffect : 0)
         guard available + newFundEffect >= -0.000_001 else {
-            throw DatabaseError.message("O resgate é maior que o saldo disponível nesse fundo.")
+            throw DatabaseError.message("Esse resgate é maior que o saldo do fundo. Quer ajustar o valor?")
         }
 
         try execute("BEGIN")
@@ -623,7 +623,7 @@ final class Database {
         let validSchema = sqlite3_prepare_v2(candidate, "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('months','income_entries','monthly_expenses','investments')", -1, &check, nil) == SQLITE_OK
             && sqlite3_step(check) == SQLITE_ROW && sqlite3_column_int(check, 0) == 4
         sqlite3_finalize(check); sqlite3_close(candidate)
-        guard validSchema else { throw DatabaseError.message("O backup não possui a estrutura esperada do app Finanças.") }
+        guard validSchema else { throw DatabaseError.message("Esse arquivo não parece ser um backup do Finanças.") }
 
         let temporary = url.deletingLastPathComponent().appendingPathComponent("import-\(UUID().uuidString).sqlite")
         try FileManager.default.copyItem(at: source, to: temporary)
@@ -635,7 +635,7 @@ final class Database {
             guard sqlite3_open(url.path, &handle) == SQLITE_OK else { throw DatabaseError.message("Falha ao reabrir o banco atual após a importação.") }
             throw error
         }
-        guard sqlite3_open(url.path, &handle) == SQLITE_OK else { throw DatabaseError.message("Backup inválido ou ilegível.") }
+        guard sqlite3_open(url.path, &handle) == SQLITE_OK else { throw DatabaseError.message("Não consegui ler esse backup.") }
         try execute("PRAGMA foreign_keys = ON")
         try migrate()
         try migrateAwayFromAutomaticCardInvoices()

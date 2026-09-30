@@ -13,6 +13,7 @@ final class AppStore: ObservableObject {
     @Published var investmentMovements: [InvestmentMovement] = []
     @Published var monthlyInvestmentGoal = Database.defaultMonthlyInvestmentGoal
     @Published var errorMessage: String?
+    @Published var notice: Notice?
 
     let database: Database
 
@@ -117,17 +118,30 @@ final class AppStore: ObservableObject {
             let next = base.month == 12 ? (base.year + 1, 1) : (base.year, base.month + 1)
             selectedMonthID = try database.createMonth(year: next.0, month: next.1)
             months = try database.months(); try reloadMonth()
+            if let month = selectedMonth { announce("\(month.title) pronto, já com suas contas fixas.", systemImage: "calendar.badge.checkmark") }
         }
     }
 
-    func saveMonth(_ value: BudgetMonth) { perform { try database.updateMonth(value); reloadAll() } }
+    func saveMonth(_ value: BudgetMonth) {
+        if perform({ try database.updateMonth(value); reloadAll() }) { announce("Saldos atualizados.") }
+    }
     func deleteCurrentMonth() {
         guard let id = selectedMonthID else { return }
         perform { try database.deleteMonth(id); reloadAll(selectLatest: true) }
     }
-    func save(_ value: Income) { perform { try database.saveIncome(value); try refreshCurrentMonth() } }
+    func save(_ value: Income) {
+        guard perform({ try database.saveIncome(value); try refreshCurrentMonth() }) else { return }
+        if value.id == 0 {
+            announce("Anotado: \(AppFormat.money(value.amount)) de \(value.description).", hidden: "Entrada anotada: \(value.description).")
+        } else { announce("Alterações salvas.") }
+    }
     func delete(_ value: Income) { perform { try database.deleteIncome(value.id); try refreshCurrentMonth() } }
-    func save(_ value: Expense) { perform { try database.saveExpense(value); try refreshCurrentMonth() } }
+    func save(_ value: Expense) {
+        guard perform({ try database.saveExpense(value); try refreshCurrentMonth() }) else { return }
+        if value.id == 0 {
+            announce("Anotado: \(AppFormat.money(value.amount)) em \(value.category).", hidden: "Anotado em \(value.category).")
+        } else { announce("Alterações salvas.") }
+    }
     func saveExpenseBatch(_ values: [Expense]) throws {
         try database.saveExpenseBatch(values)
         perform { try refreshCurrentMonth() }
@@ -135,17 +149,30 @@ final class AppStore: ObservableObject {
     func delete(_ value: Expense) { perform { try database.deleteExpense(value.id); try refreshCurrentMonth() } }
     func save(_ value: Investment) { perform { try database.saveInvestment(value); try refreshCurrentMonth() } }
     func delete(_ value: Investment) { perform { try database.deleteInvestment(value.id); try refreshCurrentMonth() } }
-    func save(_ value:InvestmentMovement) { perform { try database.saveInvestmentMovement(value); try refreshCurrentMonth() } }
+    func save(_ value:InvestmentMovement) {
+        guard perform({ try database.saveInvestmentMovement(value); try refreshCurrentMonth() }) else { return }
+        guard value.id == 0 else { announce("Alterações salvas."); return }
+        let fund = investmentFunds.first { $0.id == value.fundID }?.name ?? "fundo"
+        let amount = AppFormat.money(value.amount)
+        switch value.kind {
+        case .contribution: announce("Aporte de \(amount) em \(fund). Seu dinheiro trabalhando.", hidden: "Aporte registrado em \(fund).", systemImage: "arrow.up.circle.fill")
+        case .withdrawal: announce("Resgate de \(amount) de \(fund) registrado.", hidden: "Resgate registrado de \(fund).", systemImage: "arrow.down.circle.fill")
+        }
+    }
     func delete(_ value:InvestmentMovement) { perform { try database.deleteInvestmentMovement(value.id); try refreshCurrentMonth() } }
-    func saveMonthlyInvestmentGoal(_ value: Double) { perform { try database.setMonthlyInvestmentGoal(value); monthlyInvestmentGoal = value } }
+    func saveMonthlyInvestmentGoal(_ value: Double) {
+        if perform({ try database.setMonthlyInvestmentGoal(value); monthlyInvestmentGoal = value }) { announce("Meta mensal atualizada.", systemImage: "target") }
+    }
     /// Throws so the editor sheet can show the problem (e.g. a duplicate name) without closing.
     func save(_ value:InvestmentFund) throws {
         try database.saveInvestmentFund(value)
         investmentFunds = try database.investmentFunds()
+        let name = value.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        announce(value.id == 0 ? "\(name) agora faz parte dos seus investimentos." : "Alterações salvas.")
     }
     func delete(_ value:InvestmentFund) { perform { try database.deleteInvestmentFund(value.id); investmentFunds = try database.investmentFunds() } }
     func save(_ value: RecurringExpense, addToCurrentMonth: Bool = false) {
-        perform {
+        let saved = perform {
             let recurringID = try database.saveRecurring(value)
             if addToCurrentMonth, let monthID = selectedMonthID {
                 try database.instantiateRecurring(monthID: monthID)
@@ -158,11 +185,20 @@ final class AppStore: ObservableObject {
             recurring = try database.recurringExpenses()
             try refreshCurrentMonth()
         }
+        if saved { announce(value.id == 0 ? "\(value.description) entrou nas suas contas de todo mês." : "Alterações salvas.") }
     }
     func delete(_ value: RecurringExpense) { perform { try database.deleteRecurring(value.id); recurring = try database.recurringExpenses() } }
     func syncRecurring() { guard let id=selectedMonthID else{return}; perform { try database.instantiateRecurring(monthID:id); try reloadMonth() } }
-    func payInvoice() { guard let id=selectedMonthID else{return}; perform { try database.payInvoice(monthID:id); try refreshCurrentMonth() } }
-    func prepayInvoice(amount: Double) { guard let id=selectedMonthID else{return}; perform { try database.prepayInvoice(monthID:id, amount:amount); try refreshCurrentMonth() } }
+    func payInvoice() {
+        guard let id=selectedMonthID else{return}
+        if perform({ try database.payInvoice(monthID:id); try refreshCurrentMonth() }) { announce("Fatura paga. Cartão em dia.", systemImage: "creditcard.fill") }
+    }
+    func prepayInvoice(amount: Double) {
+        guard let id=selectedMonthID else{return}
+        if perform({ try database.prepayInvoice(monthID:id, amount:amount); try refreshCurrentMonth() }) {
+            announce("Adiantei \(AppFormat.money(amount)) da fatura.", hidden: "Adiantamento da fatura registrado.", systemImage: "creditcard.fill")
+        }
+    }
 
     func invoicePrepaidAmount() -> Double {
         guard let id = selectedMonthID else { return 0 }
@@ -173,11 +209,25 @@ final class AppStore: ObservableObject {
         perform {
             if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
             try FileManager.default.copyItem(at: database.url, to: url)
+            announce("Backup salvo. Seus dados estão guardados.", systemImage: "externaldrive.fill.badge.checkmark")
         }
     }
-    func importBackup(from url: URL) { perform { try database.replaceDatabase(with: url); reloadAll(selectLatest: true) } }
+    func importBackup(from url: URL) {
+        if perform({ try database.replaceDatabase(with: url); reloadAll(selectLatest: true) }) { announce("Backup importado. Tudo no lugar.", systemImage: "externaldrive.fill.badge.checkmark") }
+    }
 
-    private func perform(_ action: () throws -> Void) {
-        do { try action() } catch { errorMessage = error.localizedDescription }
+    /// Shows a short confirmation that goes away by itself.
+    func announce(_ text: String, hidden: String? = nil, systemImage: String = "checkmark.circle.fill") {
+        let value = Notice(text: text, hiddenText: hidden, systemImage: systemImage)
+        notice = value
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2.8))
+            if self?.notice?.id == value.id { self?.notice = nil }
+        }
+    }
+
+    @discardableResult
+    private func perform(_ action: () throws -> Void) -> Bool {
+        do { try action(); return true } catch { errorMessage = error.localizedDescription; return false }
     }
 }

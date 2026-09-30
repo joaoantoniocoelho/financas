@@ -13,7 +13,7 @@ struct IncomesView: View {
                 if compact {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 16) {
-                            MobileHeader(title: extrasOnly ? "Entradas extras" : "Entradas", subtitle: "Salários, extras e reembolsos") {
+                            MobileHeader(title: extrasOnly ? "Entradas extras" : "Entradas", subtitle: "O que entrou e o que ainda vem") {
                                 CircleActionButton(title: "Nova entrada", systemImage: "plus") { newIncome(month) }
                             }
                             .entrance(0)
@@ -37,7 +37,7 @@ struct IncomesView: View {
     }
 
     private func header(_ month: BudgetMonth) -> some View {
-        ScreenHeader(extrasOnly ? "Entradas extras" : "Entradas", subtitle: extrasOnly ? "Bônus, freelas, reembolsos e outras rendas" : "Fixas e extras recebidas no mês") {
+        ScreenHeader(extrasOnly ? "Entradas extras" : "Entradas", subtitle: extrasOnly ? "Bônus, freelas e reembolsos que chegaram" : "O que entrou e o que ainda vem") {
             Button { newIncome(month) } label: { Label("Nova entrada", systemImage: "plus") }
         }
     }

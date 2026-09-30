@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var confirmDeleteMonth=false
     @State private var importDone=false
     @State private var investmentGoal:Double?
+    @AppStorage(Concierge.nameKey) private var userName = ""
     @AppStorage("ollamaBaseURL") private var ollamaBaseURL = "http://192.168.0.250:11434"
     @AppStorage("ollamaModel") private var ollamaModel = "qwen3.5:9b"
     @State private var ollamaState: OllamaState = .idle
@@ -50,13 +51,24 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment:.leading,spacing:24) {
                 if compact {
-                    MobileHeader(title: "Configurações", subtitle: "Recorrências e dados locais") {
+                    MobileHeader(title: "Configurações", subtitle: "Ajuste o app do seu jeito") {
                         CircleActionButton(title: "Nova recorrência", systemImage: "plus") { newRecurring() }
                     }
                 } else {
-                    ScreenHeader("Configurações",subtitle:"Recorrências e dados locais",inset:0) {
+                    ScreenHeader("Configurações",subtitle:"Ajuste o app do seu jeito",inset:0) {
                         Button { newRecurring() } label:{Label("Nova recorrência",systemImage:"plus")}
                     }
+                }
+                GroupBox("Como posso te chamar?") {
+                    VStack(alignment:.leading,spacing:12) {
+                        Text("Uso seu nome para cumprimentar você no Resumo e na barra de menus.").foregroundStyle(.secondary)
+                        TextField("Seu nome",text:$userName,prompt:Text(Concierge.displayName(stored:"") ?? "Seu nome"))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth:compact ? .infinity : 260)
+                            #if os(iOS)
+                            .textContentType(.givenName)
+                            #endif
+                    }.padding(compact ? 0 : 8)
                 }
                 GroupBox("Gastos recorrentes") {
                     VStack(spacing:0) {

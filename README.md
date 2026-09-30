@@ -25,12 +25,12 @@
 
 | Area | What you track |
 | --- | --- |
-| **Summary** | Current balance, pending payments, card bill, expected salary, and spending by category. |
+| **Summary** | A greeting with the one thing that needs attention today, current balance, pending payments, card bill, expected salary, and spending by category. |
 | **Expenses** | Recurring expenses, organized by category and copied into new months. |
 | **Outflows** | One-off purchases and payments, with status filters. |
 | **Income** | Salaries, extra income, and the next expected fixed income. |
-| **Investments** | Funds, goals, contributions, withdrawals, and emergency reserve coverage. |
-| **Settings** | Recurrences, local files, backup import or export, and local Ollama configuration. |
+| **Investments** | Funds, goals, contributions, withdrawals, and emergency reserve coverage. Euro balances stay in euros on their own page. |
+| **Settings** | Your name for the greeting, recurrences, local files, backup import or export, and local Ollama configuration. |
 
 ### Local AI assistant
 

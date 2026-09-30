@@ -72,7 +72,7 @@ struct ExpensesView: View {
                     ChipPicker(selection: $filter, options: ExpenseFilter.allCases, title: \.rawValue).entrance(1)
                     totalCard.entrance(2)
                     if filtered.isEmpty {
-                        ContentUnavailableView(filter == .all ? "Nada por aqui" : "Nenhum lançamento \(filter.rawValue.lowercased())", systemImage: mode == .fixed ? "repeat" : "cart", description: Text(mode == .fixed ? "Toque em + para cadastrar um gasto fixo." : "Toque em + para registrar uma saída."))
+                        ContentUnavailableView(filter == .all ? "Nada por aqui" : "Nenhum lançamento \(filter.rawValue.lowercased())", systemImage: mode == .fixed ? "repeat" : "cart", description: Text(mode == .fixed ? "Toque em + e eu repito esse gasto todo mês." : "Toque em + e eu anoto a saída para você."))
                             .padding(.vertical, 24)
                     }
                     if mode == .outflows && outflowGrouping == .date {
@@ -119,7 +119,7 @@ struct ExpensesView: View {
     }
 
     private func header(_ month: BudgetMonth) -> some View {
-        ScreenHeader(mode == .fixed ? "Gastos fixos" : "Saídas", subtitle:mode == .fixed ? "Despesas recorrentes agrupadas por categoria" : "Gastos pontuais por data ou categoria") {
+        ScreenHeader(mode == .fixed ? "Gastos fixos" : "Saídas", subtitle:mode == .fixed ? "Suas contas de todo mês, por categoria" : "O que saiu da conta este mês") {
             Picker("Filtro",selection:$filter){ForEach(ExpenseFilter.allCases){Text($0.rawValue).tag($0)}}.pickerStyle(.segmented).pointerCursor().frame(width:mode == .fixed ? 430 : 330)
             if mode == .outflows {
                 Picker("Visualizar por", selection: $outflowGrouping) {
@@ -140,7 +140,7 @@ struct ExpensesView: View {
     // MARK: iPhone
 
     private func mobileHeader(_ month: BudgetMonth) -> some View {
-        MobileHeader(title: mode == .fixed ? "Gastos fixos" : "Saídas", subtitle: mode == .fixed ? "Despesas de todo mês" : "Gastos pontuais do mês") {
+        MobileHeader(title: mode == .fixed ? "Gastos fixos" : "Saídas", subtitle: mode == .fixed ? "Suas contas de todo mês" : "O que saiu da conta este mês") {
             if mode == .fixed {
                 CircleActionButton(title: "Sincronizar recorrentes", systemImage: "arrow.triangle.2.circlepath", prominent: false) { store.syncRecurring() }
                 CircleActionButton(title: "Novo gasto fixo", systemImage: "plus") { newRecurring() }

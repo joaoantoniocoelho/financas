@@ -15,13 +15,13 @@ struct InvestmentsView: View {
             ScrollView {
                 VStack(alignment:.leading,spacing:18) {
                     if compact {
-                        MobileHeader(title: "Investimentos", subtitle: "Fundos, aportes e resgates") {
+                        MobileHeader(title: "Investimentos", subtitle: "Seu dinheiro trabalhando por você") {
                             CircleActionButton(title: "Novo investimento", systemImage: "building.columns", prominent: false) { newFund() }
                             CircleActionButton(title: "Nova movimentação", systemImage: "plus") { newMovement(month) }
                         }
                         .entrance(0)
                     } else {
-                        ScreenHeader("Investimentos",subtitle:"Acompanhe seus fundos, aportes e resgates",inset:0) {
+                        ScreenHeader("Investimentos",subtitle:"Seu dinheiro trabalhando por você",inset:0) {
                             Button { newMovement(month) } label:{ Label("Nova movimentação",systemImage:"plus") }
                             Button { newFund() } label:{ Label("Novo investimento",systemImage:"building.columns") }
                         }
@@ -29,56 +29,58 @@ struct InvestmentsView: View {
 
                     carousel.entrance(1)
 
-                    EmergencyReserveCard(funds:store.emergencyReserveFunds,balance:store.emergencyReserveBalance,fixedExpenses:store.monthlyFixedExpenseBaseline,months:store.emergencyReserveMonths)
-                        .entrance(2)
+                    // The foreign currency pages show only their balance; everything else is in reais.
+                    if activePage == .reais {
+                        EmergencyReserveCard(funds:store.emergencyReserveFunds,balance:store.emergencyReserveBalance,fixedExpenses:store.monthlyFixedExpenseBaseline,months:store.emergencyReserveMonths)
+                            .entrance(2)
 
-                    GroupBox {
-                        if pageFunds.isEmpty {
-                            ContentUnavailableView("Nenhum investimento em reais",systemImage:"building.columns",description:Text("Cadastre fundos, ações ou objetivos para acompanhar os saldos."))
-                                .frame(height:170)
-                        } else {
-                            LazyVGrid(columns:columns,spacing:12) {
-                                ForEach(pageFunds.prefix(Self.previewCount)) { fund in
-                                    FundCard(fund:fund) { editingFund=fund } delete:{ deletingFund=fund }
+                        GroupBox {
+                            if store.realFunds.isEmpty {
+                                ContentUnavailableView("Nenhum investimento em reais",systemImage:"building.columns",description:Text("Cadastre fundos, ações ou objetivos e eu acompanho os saldos para você."))
+                                    .frame(height:170)
+                            } else {
+                                LazyVGrid(columns:columns,spacing:12) {
+                                    ForEach(store.realFunds.prefix(Self.previewCount)) { fund in
+                                        FundCard(fund:fund) { editingFund=fund } delete:{ deletingFund=fund }
+                                    }
+                                }.padding(compact ? 0 : 6)
+                            }
+                        } label: {
+                            HStack {
+                                Text("Seus investimentos")
+                                Spacer()
+                                if !store.investmentFunds.isEmpty {
+                                    NavigationLink { InvestmentFundsListView() } label: {
+                                        Image(systemName:"chevron.right")
+                                            .font(.system(size:13,weight:.bold))
+                                            .frame(width:30,height:30)
+                                            .background(AppBrand.accent.opacity(0.12),in:Circle())
+                                            .contentShape(Circle())
+                                    }
+                                    .buttonStyle(.plain).pointerCursor()
+                                    .accessibilityLabel("Ver todos os investimentos")
                                 }
-                            }.padding(compact ? 0 : 6)
-                        }
-                    } label: {
-                        HStack {
-                            Text(activePage.listTitle)
-                                .contentTransition(.opacity)
-                            Spacer()
-                            if !store.investmentFunds.isEmpty {
-                                NavigationLink { InvestmentFundsListView() } label: {
-                                    Image(systemName:"chevron.right")
-                                        .font(.system(size:13,weight:.bold))
-                                        .frame(width:30,height:30)
-                                        .background(AppBrand.accent.opacity(0.12),in:Circle())
-                                        .contentShape(Circle())
-                                }
-                                .buttonStyle(.plain).pointerCursor()
-                                .accessibilityLabel("Ver todos os investimentos")
                             }
                         }
-                    }
-                    .entrance(3)
+                        .entrance(3)
 
-                    GroupBox("Movimentações de \(month.title)") {
-                        if store.investmentMovements.isEmpty {
-                            ContentUnavailableView("Nenhuma movimentação neste mês",systemImage:"arrow.left.arrow.right",description:Text("Registre um aporte ou resgate e escolha em qual fundo ele aconteceu."))
-                                .frame(height:170)
-                        } else {
-                            VStack(spacing:0) {
-                                ForEach(store.investmentMovements) { movement in
-                                    InvestmentMovementRow(movement:movement,fundName:store.investmentFunds.first(where:{$0.id == movement.fundID})?.name ?? "Fundo") {
-                                        editing=movement
-                                    } delete:{ store.delete(movement) }
-                                    if movement.id != store.investmentMovements.last?.id { Divider() }
-                                }
-                            }.padding(.horizontal,compact ? 0 : 8)
+                        GroupBox("Movimentações de \(month.title)") {
+                            if store.investmentMovements.isEmpty {
+                                ContentUnavailableView("Nenhum aporte este mês",systemImage:"arrow.left.arrow.right",description:Text("Quer registrar um? Use Nova movimentação e escolha o fundo."))
+                                    .frame(height:170)
+                            } else {
+                                VStack(spacing:0) {
+                                    ForEach(store.investmentMovements) { movement in
+                                        InvestmentMovementRow(movement:movement,fundName:store.investmentFunds.first(where:{$0.id == movement.fundID})?.name ?? "Fundo") {
+                                            editing=movement
+                                        } delete:{ store.delete(movement) }
+                                        if movement.id != store.investmentMovements.last?.id { Divider() }
+                                    }
+                                }.padding(.horizontal,compact ? 0 : 8)
+                            }
                         }
+                        .entrance(4)
                     }
-                    .entrance(4)
                 }.padding(compact ? 16 : 24)
             }
             .sheet(item:$editing) { InvestmentMovementEditor(item:$0) }
@@ -87,15 +89,9 @@ struct InvestmentsView: View {
     }
 
     /// The totals in reais first, then one page per foreign currency. Balances in different currencies
-    /// never add up, so each gets its own page, and the fund list below follows the visible one.
+    /// never add up, so each gets its own page.
     private var pages:[InvestmentPage] { [.reais] + store.foreignHoldings.map { .foreign($0.currency) } }
     private var activePage:InvestmentPage { page.flatMap { pages.contains($0) ? $0 : nil } ?? .reais }
-    private var pageFunds:[InvestmentFund] {
-        switch activePage {
-        case .reais: store.realFunds
-        case .foreign(let currency): store.investmentFunds.filter { $0.foreignCurrency == currency }
-        }
-    }
 
     @ViewBuilder private var carousel:some View {
         if pages.count == 1 {
@@ -205,7 +201,7 @@ struct InvestmentFundsListView:View {
                 FundFilterBar(filter:$filter,funds:store.investmentFunds)
                 FundTypeTotal(filter:activeFilter,funds:filteredFunds)
                 if filteredFunds.isEmpty {
-                    ContentUnavailableView("Nenhum investimento cadastrado",systemImage:"building.columns",description:Text("Cadastre fundos, ações, moeda estrangeira ou objetivos para acompanhar os saldos."))
+                    ContentUnavailableView("Nenhum investimento por aqui",systemImage:"building.columns",description:Text("Cadastre fundos, ações, moeda estrangeira ou objetivos e eu acompanho os saldos para você."))
                         .frame(height:220)
                 } else {
                     LazyVGrid(columns:columns,spacing:12) {
@@ -337,7 +333,7 @@ private struct EmergencyReserveCard:View {
                     ReserveRing(progress: fixedExpenses > 0 ? months / 6 : 0)
                     VStack(alignment:.leading,spacing:4) {
                         Text("Reserva de emergência").font(.headline)
-                        Text(funds.isEmpty ? "Nenhum investimento marcado como reserva" : funds.map(\.name).joined(separator:" + "))
+                        Text(funds.isEmpty ? "Marque um investimento como reserva e eu acompanho a cobertura" : funds.map(\.name).joined(separator:" + "))
                             .font(.caption).foregroundStyle(.secondary).lineLimit(2)
                     }
                 }
@@ -604,12 +600,6 @@ private enum InvestmentPage:Hashable,Identifiable {
     case foreign(ForeignCurrency)
     var id:Self { self }
 
-    var listTitle:String {
-        switch self {
-        case .reais: "Seus investimentos"
-        case .foreign(let currency): "Seus investimentos em \(currency.plural.lowercased())"
-        }
-    }
     var accessibilityName:String {
         switch self {
         case .reais: "Reais"

@@ -32,6 +32,7 @@ private enum MenuBarLayout {
 struct MenuBarView: View {
     @EnvironmentObject private var store: AppStore
     @AppStorage("hideAmounts") private var hideAmounts = false
+    @AppStorage(Concierge.nameKey) private var userName = ""
     @State private var editingExpense: Expense?
     @State private var editingIncome: Income?
 
@@ -59,9 +60,9 @@ struct MenuBarView: View {
                 quickActions(month)
             } else {
                 ContentUnavailableView(
-                    "Nenhum mês",
+                    "Vamos começar?",
                     systemImage: "calendar",
-                    description: Text("Crie um mês para começar a registrar suas finanças.")
+                    description: Text("Crie o primeiro mês e eu organizo o resto.")
                 )
                 .frame(maxWidth: .infinity, minHeight: 120)
 
@@ -79,11 +80,12 @@ struct MenuBarView: View {
         .frame(width: MenuBarLayout.width)
         .fixedSize(horizontal: false, vertical: true)
         .background { BrandBackground() }
+        .overlay(alignment: .bottom) { NoticeToast() }
         .environment(\.hideAmounts, hideAmounts)
         .sheet(item: $editingExpense) { ExpenseEditor(item: $0) }
         .sheet(item: $editingIncome) { IncomeEditor(item: $0) }
         .alert(
-            "Não foi possível concluir",
+            "Não consegui concluir isso",
             isPresented: Binding(
                 get: { store.errorMessage != nil },
                 set: { if !$0 { store.errorMessage = nil } }
@@ -100,7 +102,7 @@ struct MenuBarView: View {
             BrandMark().frame(width: MenuBarLayout.markSize, height: MenuBarLayout.markSize)
             VStack(alignment: .leading, spacing: MenuBarLayout.titleStackSpacing) {
                 Text("Finanças").font(.system(size: MenuBarLayout.titleSize, weight: .semibold, design: .serif))
-                Text("Visão rápida").font(.caption).foregroundStyle(.secondary)
+                Text(Concierge.greeting(name: Concierge.displayName(stored: userName))).font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             Button {

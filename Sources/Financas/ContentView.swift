@@ -27,8 +27,9 @@ struct ContentView: View {
 
     var body: some View {
         root
+        .overlay(alignment: NoticeToast.alignment) { NoticeToast() }
         .environment(\.hideAmounts, hideAmounts)
-        .alert("Não foi possível concluir", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage=nil } })) {
+        .alert("Não consegui concluir isso", isPresented: Binding(get: { store.errorMessage != nil }, set: { if !$0 { store.errorMessage=nil } })) {
             Button("OK") { store.errorMessage=nil }.pointerCursor()
         } message: { Text(store.errorMessage ?? "Erro desconhecido") }
     }
@@ -61,7 +62,7 @@ struct ContentView: View {
                 }.listStyle(.sidebar).scrollContentBackground(.hidden)
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Um mês de cada vez.").font(.system(size: 18, design: .serif))
-                    Text("Espaço para planejar o que vem depois.").font(.caption).foregroundStyle(.secondary)
+                    Text("Eu cuido das contas, você planeja o que vem depois.").font(.caption).foregroundStyle(.secondary)
                 }.padding(22)
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
@@ -475,11 +476,12 @@ struct MonthToolbar: ToolbarContent {
 }
 
 struct EmptyMonthView: View {
-    var body: some View { ContentUnavailableView("Nenhum mês", systemImage: "calendar", description: Text("Crie um mês para começar.")) }
+    var body: some View { ContentUnavailableView("Vamos começar?", systemImage: "calendar", description: Text("Crie o primeiro mês e eu organizo o resto.")) }
 }
 
 struct DashboardView: View {
     @EnvironmentObject private var store: AppStore
+    @AppStorage(Concierge.nameKey) private var userName = ""
     @Environment(\.hideAmounts) private var hideAmounts
     @Environment(\.compactLayout) private var compact
     @State private var editingBalance = false
@@ -519,11 +521,14 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     HStack {
-                        VStack(alignment: .leading) {
-                            if !compact { Text("VISÃO GERAL").font(.caption.weight(.semibold)).tracking(2).foregroundStyle(.secondary) }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Concierge.greeting(name: Concierge.displayName(stored: userName)))
+                                .font(compact ? .subheadline.weight(.medium) : .headline).foregroundStyle(AppBrand.accent)
                             Text(month.title).font(.system(size: compact ? 28 : 34, weight: .medium, design: .serif))
                                 .lineLimit(1).minimumScaleFactor(0.8)
-                            if !compact { Text("Seu mês em perspectiva.").foregroundStyle(.secondary) }
+                            Text(store.conciergeInsight(hidden: hideAmounts))
+                                .font(compact ? .subheadline : .body).foregroundStyle(.secondary)
+                                .lineLimit(2).contentTransition(.opacity)
                         }
                         Spacer()
                         if compact {
@@ -592,7 +597,7 @@ struct DashboardView: View {
                     }
                     GroupBox("Gastos por categoria") {
                         if spendingByCategory.isEmpty {
-                            ContentUnavailableView("Nenhum gasto realizado",systemImage:"chart.pie",description:Text("Gastos pagos ou na fatura aparecerão aqui."))
+                            ContentUnavailableView("Nada gasto ainda",systemImage:"chart.pie",description:Text("Quando você pagar algo, eu mostro aqui por categoria."))
                                 .frame(height:220)
                         } else {
                             VStack(alignment:.leading,spacing:8) {
@@ -705,7 +710,7 @@ struct DashboardView: View {
                             value: store.incomes.filter { $0.status == .pending }.reduce(0) { $0 + $1.amount },
                             lines: salary.map { ["Próxima \($0.days == 0 ? "hoje" : "em \($0.days) \($0.days == 1 ? "dia" : "dias")")",
                                                  "\(AppFormat.money($0.amount, hidden: hideAmounts)) • \($0.date.formatted(.dateTime.day().month(.twoDigits)))"] }
-                                   ?? ["Nenhuma entrada fixa pendente"])
+                                   ?? ["Tudo já entrou"])
                     .entrance(3)
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -802,7 +807,7 @@ struct ExpectedIncomeCard: View {
                         Text("\(AppFormat.money(salary.amount,hidden:hideAmounts)) • \(AppFormat.date.string(from:salary.date))")
                             .font(.caption).foregroundStyle(.secondary)
                     } else {
-                        Text("Nenhum salário pendente").font(.subheadline).foregroundStyle(.secondary)
+                        Text("Tudo o que era esperado já entrou").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
