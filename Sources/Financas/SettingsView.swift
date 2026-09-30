@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var editing:RecurringExpense?
     @State private var confirmDeleteMonth=false
     @State private var importDone=false
+    @State private var investmentGoal:Double?
     @AppStorage("ollamaBaseURL") private var ollamaBaseURL = "http://192.168.0.250:11434"
     @AppStorage("ollamaModel") private var ollamaModel = "qwen3.5:9b"
     @State private var ollamaState: OllamaState = .idle
@@ -74,6 +75,21 @@ struct SettingsView: View {
                         }
                     }.padding(compact ? 0 : 8)
                 }
+                GroupBox("Meta de investimento") {
+                    VStack(alignment:.leading,spacing:12) {
+                        Text("Valor planejado para investir todo mês. Aparece como “Meta do mês” em Investimentos e é descontado do orçamento de gastos variáveis.").foregroundStyle(.secondary)
+                        // Shown once loaded: on iPhone the field reads its value only when it appears.
+                        if let goal = investmentGoal {
+                            HStack {
+                                DecimalField("Meta mensal",value:Binding(get:{goal},set:{investmentGoal=$0})).frame(maxWidth:compact ? .infinity : 220)
+                                Button("Salvar") { store.saveMonthlyInvestmentGoal(goal) }
+                                    .buttonStyle(.bordered).pointerCursor()
+                                    .disabled(goal < 0 || goal == store.monthlyInvestmentGoal)
+                            }
+                        }
+                    }.padding(compact ? 0 : 8)
+                }
+                .onAppear { investmentGoal = store.monthlyInvestmentGoal }
                 GroupBox("Backup") {
                     VStack(alignment:.leading,spacing:12){Text("O backup é uma cópia completa do arquivo SQLite. Importar substitui todos os dados atuais.").foregroundStyle(.secondary);HStack{Button(compact ? "Exportar…" : "Exportar backup…",action:exportBackup).pointerCursor();Button(compact ? "Importar…" : "Importar backup…",action:importBackup).pointerCursor()}.buttonStyle(.bordered)}.padding(compact ? 0 : 8)
                 }

@@ -91,7 +91,11 @@ final class Database {
           opening_balance REAL NOT NULL DEFAULT 0,
           is_emergency_reserve INTEGER NOT NULL DEFAULT 0,
           counts_as_investment INTEGER NOT NULL DEFAULT 1,
-          active INTEGER NOT NULL DEFAULT 1
+          active INTEGER NOT NULL DEFAULT 1,
+          asset_type TEXT NOT NULL DEFAULT 'Fundo de investimento'
+        );
+        CREATE TABLE IF NOT EXISTS app_settings (
+          key TEXT PRIMARY KEY, value REAL NOT NULL
         );
         CREATE TABLE IF NOT EXISTS investment_movements (
           id INTEGER PRIMARY KEY,
@@ -117,7 +121,10 @@ final class Database {
         if try !hasColumn("counts_as_investment", in:"investment_funds") {
             try execute("ALTER TABLE investment_funds ADD COLUMN counts_as_investment INTEGER NOT NULL DEFAULT 1")
         }
-        try execute("UPDATE investment_funds SET counts_as_investment=0 WHERE lower(name)=lower('Viagem')")
+        if try !hasColumn("asset_type", in:"investment_funds") {
+            try execute("ALTER TABLE investment_funds ADD COLUMN asset_type TEXT NOT NULL DEFAULT 'Fundo de investimento'")
+            try execute("UPDATE investment_funds SET asset_type=? WHERE counts_as_investment=0 OR lower(name)=lower('Viagem')",bindings:[InvestmentAssetType.goal.rawValue])
+        }
     }
 
     private func hasColumn(_ column: String, in table: String) throws -> Bool {
@@ -238,6 +245,19 @@ final class Database {
             guard let plannedDate=Self.date(year:year,month:month,day:plan.day,calendar:calendar) else { continue }
             try saveInvestment(Investment(id:0,monthID:monthID,plannedDate:plannedDate,plannedAmount:plan.amount,actualAmount:0,status:.pending))
         }
+    }
+
+    static let defaultMonthlyInvestmentGoal = 3000.0
+
+    /// The goal used by months without their own investment plan.
+    func monthlyInvestmentGoal() throws -> Double {
+        var value = Self.defaultMonthlyInvestmentGoal
+        try rows("SELECT value FROM app_settings WHERE key='monthly_investment_goal'") { value = sqlite3_column_double($0,0) }
+        return value
+    }
+
+    func setMonthlyInvestmentGoal(_ value: Double) throws {
+        try execute("INSERT INTO app_settings(key,value) VALUES('monthly_investment_goal',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", bindings:[value])
     }
 
     func updateMonth(_ month: BudgetMonth) throws {
@@ -420,7 +440,7 @@ final class Database {
     func investmentFunds() throws -> [InvestmentFund] {
         var result:[InvestmentFund] = []
         try rows("""
-        SELECT f.id,f.name,f.opening_balance,f.is_emergency_reserve,f.counts_as_investment,
+        SELECT f.id,f.name,f.opening_balance,f.is_emergency_reserve,f.asset_type,
                f.opening_balance + COALESCE(SUM(CASE m.kind WHEN 'Aporte' THEN m.amount ELSE -m.amount END),0)
         FROM investment_funds f
         LEFT JOIN investment_movements m ON m.fund_id=f.id
@@ -429,12 +449,42 @@ final class Database {
         ORDER BY f.is_emergency_reserve DESC,f.id
         """) { s in
             result.append(InvestmentFund(
-                id:sqlite3_column_int64(s,0), name:text(s,1), openingBalance:sqlite3_column_double(s,2),
-                currentBalance:sqlite3_column_double(s,5), isEmergencyReserve:sqlite3_column_int(s,3) != 0,
-                countsAsInvestment:sqlite3_column_int(s,4) != 0
+                id:sqlite3_column_int64(s,0), name:text(s,1), assetType:InvestmentAssetType(rawValue:text(s,4)) ?? .other,
+                openingBalance:sqlite3_column_double(s,2), currentBalance:sqlite3_column_double(s,5),
+                isEmergencyReserve:sqlite3_column_int(s,3) != 0
             ))
         }
         return result
+    }
+
+    /// Saves a fund's details. `currentBalance` is taken as the corrected balance: the opening balance is
+    /// adjusted so it holds with the existing movements, without recording a contribution or touching the account.
+    func saveInvestmentFund(_ item:InvestmentFund) throws {
+        let name = item.name.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !name.isEmpty else { throw DatabaseError.message("Informe o nome do investimento.") }
+        var duplicate = false
+        try rows("SELECT 1 FROM investment_funds WHERE lower(name)=lower(?) AND id<>?",bindings:[name,item.id]) { _ in duplicate = true }
+        guard !duplicate else { throw DatabaseError.message("Já existe um investimento chamado \(name).") }
+        let movements = item.id == 0 ? 0 : try investmentFundBalance(id:item.id) - investmentFundOpeningBalance(id:item.id)
+        let bindings:[Any?] = [name,item.currentBalance - movements,item.isEmergencyReserve,item.countsAsInvestment,item.assetType.rawValue]
+        if item.id == 0 {
+            try execute("INSERT INTO investment_funds(name,opening_balance,is_emergency_reserve,counts_as_investment,asset_type) VALUES(?,?,?,?,?)",bindings:bindings)
+        } else {
+            try execute("UPDATE investment_funds SET name=?,opening_balance=?,is_emergency_reserve=?,counts_as_investment=?,asset_type=? WHERE id=?",bindings:bindings + [item.id])
+        }
+    }
+
+    func deleteInvestmentFund(_ id:Int64) throws {
+        var movements = 0
+        try rows("SELECT COUNT(*) FROM investment_movements WHERE fund_id=?",bindings:[id]) { movements = Int(sqlite3_column_int($0,0)) }
+        guard movements == 0 else { throw DatabaseError.message("Esse investimento tem movimentações registradas. Exclua as movimentações antes de excluí-lo.") }
+        try execute("DELETE FROM investment_funds WHERE id=?",bindings:[id])
+    }
+
+    private func investmentFundOpeningBalance(id:Int64) throws -> Double {
+        var value = 0.0
+        try rows("SELECT opening_balance FROM investment_funds WHERE id=?",bindings:[id]) { value=sqlite3_column_double($0,0) }
+        return value
     }
 
     func investmentMovements(monthID:Int64) throws -> [InvestmentMovement] {

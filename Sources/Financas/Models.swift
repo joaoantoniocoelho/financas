@@ -106,13 +106,43 @@ struct Investment: Identifiable {
     var status: InvestmentStatus
 }
 
+enum InvestmentAssetType: String, CaseIterable, Identifiable {
+    case fund = "Fundo de investimento"
+    case fixedIncome = "Renda fixa"
+    case stocks = "Ações"
+    case realEstate = "Fundo imobiliário"
+    case currency = "Moeda estrangeira"
+    case crypto = "Criptomoeda"
+    case pension = "Previdência"
+    case goal = "Objetivo financeiro"
+    case other = "Outro"
+    var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .fund: "building.columns.fill"
+        case .fixedIncome: "doc.text.fill"
+        case .stocks: "chart.line.uptrend.xyaxis"
+        case .realEstate: "building.2.fill"
+        case .currency: "dollarsign.arrow.circlepath"
+        case .crypto: "bitcoinsign.circle.fill"
+        case .pension: "figure.walk.circle.fill"
+        case .goal: "airplane.departure"
+        case .other: "square.stack.3d.up.fill"
+        }
+    }
+}
+
 struct InvestmentFund: Identifiable, Hashable {
     var id: Int64
     var name: String
+    var assetType: InvestmentAssetType = .fund
     var openingBalance: Double
     var currentBalance: Double
     var isEmergencyReserve: Bool
-    var countsAsInvestment: Bool
+
+    /// Goals (like a trip) hold money but don't count toward the month's investment contributions.
+    var countsAsInvestment: Bool { assetType != .goal }
 }
 
 enum InvestmentMovementKind: String, CaseIterable, Identifiable {

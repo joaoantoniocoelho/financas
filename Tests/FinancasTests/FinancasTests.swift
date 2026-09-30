@@ -64,17 +64,65 @@ final class FinancasTests: XCTestCase {
     }
 
     @MainActor
-    func testFinancialGoalDoesNotCountAsInvestedValue() throws {
+    func testTotalInvestedIncludesGoalsButMonthlyContributionsDoNot() throws {
         let database=try makeDatabase()
-        try database.execute("INSERT INTO investment_funds(name,opening_balance,is_emergency_reserve,counts_as_investment,active) VALUES('Viagem',8453,0,0,1)")
+        try database.saveInvestmentFund(InvestmentFund(id:0,name:"Viagem",assetType:.goal,openingBalance:0,currentBalance:8453,isEmergencyReserve:false))
         let monthID=try database.createMonth(year:2026,month:9,initialBalance:1000)
         let travelID=try XCTUnwrap(database.investmentFunds().first(where:{$0.name == "Viagem"})?.id)
         try database.saveInvestmentMovement(InvestmentMovement(id:0,monthID:monthID,fundID:travelID,date:date(2026,9,7),kind:.contribution,amount:100,notes:""))
         let store=AppStore(database:database)
         XCTAssertEqual(store.investmentFunds.count,3)
-        XCTAssertEqual(store.totalInvested,10822.01,accuracy:0.001)
+        XCTAssertEqual(store.totalInvested,10822.01+8553,accuracy:0.001)
         XCTAssertEqual(store.totals.investmentsActual,0,accuracy:0.001)
         XCTAssertEqual(store.investmentFunds.first(where:{$0.name == "Viagem"})?.countsAsInvestment,false)
+    }
+
+    func testEditingFundBalanceKeepsMovementsAndAccountUntouched() throws {
+        let database=try makeDatabase()
+        let monthID=try database.createMonth(year:2026,month:9,initialBalance:2000)
+        var fund=try XCTUnwrap(database.investmentFunds().first(where:\.isEmergencyReserve))
+        try database.saveInvestmentMovement(InvestmentMovement(id:0,monthID:monthID,fundID:fund.id,date:date(2026,9,6),kind:.contribution,amount:500,notes:""))
+
+        fund=try XCTUnwrap(database.investmentFunds().first(where:{$0.id == fund.id}))
+        fund.name="Occam"
+        fund.assetType = .fixedIncome
+        fund.currentBalance=9100
+        try database.saveInvestmentFund(fund)
+
+        let saved=try XCTUnwrap(database.investmentFunds().first(where:{$0.id == fund.id}))
+        XCTAssertEqual(saved.name,"Occam")
+        XCTAssertEqual(saved.assetType,.fixedIncome)
+        XCTAssertEqual(saved.currentBalance,9100,accuracy:0.001)
+        XCTAssertEqual(try database.investmentMovements(monthID:monthID).count,1)
+        XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance,1500,accuracy:0.001)
+        XCTAssertThrowsError(try database.deleteInvestmentFund(fund.id))
+    }
+
+    func testFundNamesMustBeUnique() throws {
+        let database=try makeDatabase()
+        XCTAssertThrowsError(try database.saveInvestmentFund(InvestmentFund(id:0,name:"vinland incentivado debêntures",openingBalance:0,currentBalance:10,isEmergencyReserve:false)))
+    }
+
+    @MainActor
+    func testEmergencyReserveSumsEveryMarkedFund() throws {
+        let database=try makeDatabase()
+        try database.saveRecurring(RecurringExpense(id:0,description:"Aluguel",category:"Moradia",amount:1000,dueDay:5,paymentMethod:.pix,notes:"",active:true))
+        try database.saveInvestmentFund(InvestmentFund(id:0,name:"Dólar",assetType:.currency,openingBalance:0,currentBalance:1467.42,isEmergencyReserve:true))
+        let store=AppStore(database:database)
+        XCTAssertEqual(store.emergencyReserveFunds.count,2)
+        XCTAssertEqual(store.emergencyReserveBalance,10000,accuracy:0.001)
+        XCTAssertEqual(store.emergencyReserveMonths,10,accuracy:0.001)
+    }
+
+    @MainActor
+    func testMonthWithoutPlanUsesMonthlyInvestmentGoal() throws {
+        let database=try makeDatabase()
+        try database.createMonth(year:2026,month:10)
+        let store=AppStore(database:database)
+        XCTAssertEqual(store.totals.investmentsPlanned,3000,accuracy:0.001)
+        store.saveMonthlyInvestmentGoal(3500)
+        XCTAssertEqual(try database.monthlyInvestmentGoal(),3500,accuracy:0.001)
+        XCTAssertEqual(store.totals.investmentsPlanned,3500,accuracy:0.001)
     }
 
     func testDatesKeepTheirLocalCalendarDay() throws {

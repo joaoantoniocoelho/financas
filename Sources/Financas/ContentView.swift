@@ -66,8 +66,12 @@ struct ContentView: View {
             }
             .navigationSplitViewColumnWidth(min: 220, ideal: 240, max: 280)
         } detail: {
-            SectionScreen(section: section ?? .summary)
-            .toolbar { MonthToolbar() }
+            // A stack per section, so screens can push details (e.g. every investment) and switching sections starts fresh.
+            NavigationStack {
+                SectionScreen(section: section ?? .summary)
+                    .toolbar { MonthToolbar() }
+            }
+            .id(section)
             .overlay(alignment: .bottomTrailing) {
                 if showingAssistant, let month = store.selectedMonth {
                     AIExpenseView(isPresented: $showingAssistant, month: month)
@@ -229,6 +233,8 @@ private struct MobileRootView: View {
         case .investment:
             if let fund = store.investmentFunds.first {
                 InvestmentMovementEditor(item: InvestmentMovement(id: 0, monthID: month.id, fundID: fund.id, date: .now, kind: .contribution, amount: 0, notes: ""))
+            } else {
+                InvestmentFundEditor(item: InvestmentFund(id: 0, name: "", openingBalance: 0, currentBalance: 0, isEmergencyReserve: false))
             }
         case .assistant:
             AIExpenseView(isPresented: Binding(get: { action != nil }, set: { if !$0 { action = nil } }), month: month)

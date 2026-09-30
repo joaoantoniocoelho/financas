@@ -11,6 +11,7 @@ final class AppStore: ObservableObject {
     @Published var investments: [Investment] = []
     @Published var investmentFunds: [InvestmentFund] = []
     @Published var investmentMovements: [InvestmentMovement] = []
+    @Published var monthlyInvestmentGoal = Database.defaultMonthlyInvestmentGoal
     @Published var errorMessage: String?
 
     let database: Database
@@ -41,18 +42,19 @@ final class AppStore: ObservableObject {
         t.pending = expenses.filter { $0.status == .pending }.reduce(0) { $0 + $1.amount }
         t.variable = expenses.filter { !$0.isRecurring }.reduce(0) { $0 + $1.amount }
         t.paidVariable = expenses.filter { !$0.isRecurring && [.paid,.prepaid].contains($0.status) }.reduce(0) { $0 + $1.amount }
-        t.investmentsPlanned = investments.reduce(0) { $0 + $1.plannedAmount }
+        t.investmentsPlanned = investments.isEmpty ? monthlyInvestmentGoal : investments.reduce(0) { $0 + $1.plannedAmount }
         let investmentFundIDs=Set(investmentFunds.filter(\.countsAsInvestment).map(\.id))
         t.investmentsActual = investmentMovements.filter { $0.kind == .contribution && investmentFundIDs.contains($0.fundID) }.reduce(0) { $0 + $1.amount }
         return t
     }
 
-    var totalInvested:Double { investmentFunds.filter(\.countsAsInvestment).reduce(0) { $0 + $1.currentBalance } }
-    var emergencyReserve:InvestmentFund? { investmentFunds.first(where:\.isEmergencyReserve) }
+    var totalInvested:Double { investmentFunds.reduce(0) { $0 + $1.currentBalance } }
+    var emergencyReserveFunds:[InvestmentFund] { investmentFunds.filter(\.isEmergencyReserve) }
+    var emergencyReserveBalance:Double { emergencyReserveFunds.reduce(0) { $0 + $1.currentBalance } }
     var monthlyFixedExpenseBaseline:Double { recurring.filter(\.active).reduce(0) { $0 + $1.amount } }
     var emergencyReserveMonths:Double {
         guard monthlyFixedExpenseBaseline > 0 else { return 0 }
-        return (emergencyReserve?.currentBalance ?? 0) / monthlyFixedExpenseBaseline
+        return emergencyReserveBalance / monthlyFixedExpenseBaseline
     }
 
     func nextSalary(referenceDate:Date = .now) -> NextSalary? {
@@ -79,6 +81,7 @@ final class AppStore: ObservableObject {
             if selectLatest || !months.contains(where: { $0.id == selectedMonthID }) { selectedMonthID = months.last?.id }
             recurring = try database.recurringExpenses()
             investmentFunds = try database.investmentFunds()
+            monthlyInvestmentGoal = try database.monthlyInvestmentGoal()
             try reloadMonth()
         }
     }
@@ -125,6 +128,13 @@ final class AppStore: ObservableObject {
     func delete(_ value: Investment) { perform { try database.deleteInvestment(value.id); try refreshCurrentMonth() } }
     func save(_ value:InvestmentMovement) { perform { try database.saveInvestmentMovement(value); try refreshCurrentMonth() } }
     func delete(_ value:InvestmentMovement) { perform { try database.deleteInvestmentMovement(value.id); try refreshCurrentMonth() } }
+    func saveMonthlyInvestmentGoal(_ value: Double) { perform { try database.setMonthlyInvestmentGoal(value); monthlyInvestmentGoal = value } }
+    /// Throws so the editor sheet can show the problem (e.g. a duplicate name) without closing.
+    func save(_ value:InvestmentFund) throws {
+        try database.saveInvestmentFund(value)
+        investmentFunds = try database.investmentFunds()
+    }
+    func delete(_ value:InvestmentFund) { perform { try database.deleteInvestmentFund(value.id); investmentFunds = try database.investmentFunds() } }
     func save(_ value: RecurringExpense, addToCurrentMonth: Bool = false) {
         perform {
             let recurringID = try database.saveRecurring(value)
