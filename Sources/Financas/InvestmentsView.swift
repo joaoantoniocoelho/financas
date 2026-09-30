@@ -7,6 +7,7 @@ struct InvestmentsView: View {
     @State private var editing:InvestmentMovement?
     @State private var editingFund:InvestmentFund?
     @State private var deletingFund:InvestmentFund?
+    @State private var page:InvestmentPage? = .reais
     private let columns=[GridItem(.adaptive(minimum:230),spacing:12)]
 
     var body:some View {
@@ -26,38 +27,26 @@ struct InvestmentsView: View {
                         }
                     }
 
-                    if compact {
-                        heroCard.entrance(1)
-                    } else {
-                        LazyVGrid(columns:columns,spacing:12) {
-                            MetricCard("Total investido",store.totalInvested,"chart.line.uptrend.xyaxis",color:.green,size:.featured)
-                            MetricCard("Meta do mês",store.totals.investmentsPlanned,"target",size:.featured)
-                            MetricCard("Aportado no mês",store.totals.investmentsActual,"arrow.up.circle",color:.green,size:.featured)
-                        }
-                    }
-
-                    ForEach(store.foreignHoldings,id:\.currency) { holding in
-                        ForeignCurrencyCard(currency:holding.currency,funds:holding.funds,total:holding.total) { editingFund=$0 }
-                    }
-                    .entrance(2)
+                    carousel.entrance(1)
 
                     EmergencyReserveCard(funds:store.emergencyReserveFunds,balance:store.emergencyReserveBalance,fixedExpenses:store.monthlyFixedExpenseBaseline,months:store.emergencyReserveMonths)
                         .entrance(2)
 
                     GroupBox {
-                        if store.investmentFunds.isEmpty {
-                            ContentUnavailableView("Nenhum investimento cadastrado",systemImage:"building.columns",description:Text("Cadastre fundos, ações, moeda estrangeira ou objetivos para acompanhar os saldos."))
+                        if pageFunds.isEmpty {
+                            ContentUnavailableView("Nenhum investimento em reais",systemImage:"building.columns",description:Text("Cadastre fundos, ações ou objetivos para acompanhar os saldos."))
                                 .frame(height:170)
                         } else {
                             LazyVGrid(columns:columns,spacing:12) {
-                                ForEach(store.investmentFunds.prefix(Self.previewCount)) { fund in
+                                ForEach(pageFunds.prefix(Self.previewCount)) { fund in
                                     FundCard(fund:fund) { editingFund=fund } delete:{ deletingFund=fund }
                                 }
                             }.padding(compact ? 0 : 6)
                         }
                     } label: {
                         HStack {
-                            Text("Seus investimentos")
+                            Text(activePage.listTitle)
+                                .contentTransition(.opacity)
                             Spacer()
                             if !store.investmentFunds.isEmpty {
                                 NavigationLink { InvestmentFundsListView() } label: {
@@ -97,6 +86,62 @@ struct InvestmentsView: View {
         } else { EmptyMonthView() }
     }
 
+    /// The totals in reais first, then one page per foreign currency. Balances in different currencies
+    /// never add up, so each gets its own page, and the fund list below follows the visible one.
+    private var pages:[InvestmentPage] { [.reais] + store.foreignHoldings.map { .foreign($0.currency) } }
+    private var activePage:InvestmentPage { page.flatMap { pages.contains($0) ? $0 : nil } ?? .reais }
+    private var pageFunds:[InvestmentFund] {
+        switch activePage {
+        case .reais: store.realFunds
+        case .foreign(let currency): store.investmentFunds.filter { $0.foreignCurrency == currency }
+        }
+    }
+
+    @ViewBuilder private var carousel:some View {
+        if pages.count == 1 {
+            reaisPage
+        } else {
+            VStack(spacing:10) {
+                ScrollView(.horizontal,showsIndicators:false) {
+                    HStack(alignment:.top,spacing:12) {
+                        ForEach(pages) { page in
+                            pageView(page).containerRelativeFrame(.horizontal).id(page)
+                        }
+                    }
+                    // Pages share the tallest one's height, so the cards line up while swiping.
+                    .fixedSize(horizontal:false,vertical:true)
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.viewAligned)
+                .scrollPosition(id:$page)
+                PageDots(pages:pages,active:activePage) { target in withAnimation(.snappy) { page=target } }
+            }
+            .animation(.snappy,value:activePage)
+        }
+    }
+
+    @ViewBuilder private func pageView(_ page:InvestmentPage) -> some View {
+        switch page {
+        case .reais: reaisPage
+        case .foreign(let currency):
+            if let holding=store.foreignHoldings.first(where:{$0.currency == currency}) {
+                ForeignCurrencyCard(currency:currency,count:holding.funds.count,total:holding.total)
+            }
+        }
+    }
+
+    @ViewBuilder private var reaisPage:some View {
+        if compact {
+            heroCard
+        } else {
+            LazyVGrid(columns:columns,spacing:12) {
+                MetricCard("Total investido",store.totalInvested,"chart.line.uptrend.xyaxis",color:.green,size:.featured)
+                MetricCard("Meta do mês",store.totals.investmentsPlanned,"target",size:.featured)
+                MetricCard("Aportado no mês",store.totals.investmentsActual,"arrow.up.circle",color:.green,size:.featured)
+            }
+        }
+    }
+
     /// iPhone: the invested total up front, with the month's goal and contributions below.
     private var heroCard: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -118,7 +163,7 @@ struct InvestmentsView: View {
             }
         }
         .foregroundStyle(.white)
-        .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background { HeroBackground() }
     }
 
@@ -500,9 +545,8 @@ private struct ForeignCurrencyCard:View {
     @Environment(\.hideAmounts) private var hideAmounts
     @Environment(\.compactLayout) private var compact
     let currency:ForeignCurrency
-    let funds:[InvestmentFund]
+    let count:Int
     let total:Double
-    let edit:(InvestmentFund)->Void
 
     var body:some View {
         VStack(alignment:.leading,spacing:16) {
@@ -513,7 +557,7 @@ private struct ForeignCurrencyCard:View {
                     .frame(width:32,height:32)
                     .background(currency.highlight,in:Circle())
                 VStack(alignment:.leading,spacing:1) {
-                    Text(currency.plural.uppercased()).font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(currency.highlight)
+                    Text("VALOR EM \(currency.plural.uppercased())").font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(currency.highlight)
                     Text("Fora do total em reais").font(.caption2).foregroundStyle(.white.opacity(0.7))
                 }
             }
@@ -521,31 +565,62 @@ private struct ForeignCurrencyCard:View {
                 .font(.system(size:compact ? 34 : 38,weight:.medium,design:.rounded)).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.7)
                 .contentTransition(.numericText())
-            if funds.count > 1 {
-                ScrollView(.horizontal,showsIndicators:false) {
-                    HStack(spacing:8) {
-                        ForEach(funds) { fund in
-                            Button { edit(fund) } label: {
-                                VStack(alignment:.leading,spacing:2) {
-                                    Text(fund.name).font(.caption2.weight(.medium)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
-                                    Text(AppFormat.money(fund.currentBalance,in:currency,hidden:hideAmounts)).font(.footnote.weight(.semibold)).monospacedDigit()
-                                }
-                                .padding(.horizontal,10).padding(.vertical,8)
-                                .background(.white.opacity(0.12),in:RoundedRectangle(cornerRadius:12,style:.continuous))
-                            }
-                            .buttonStyle(.plain).pointerCursor()
-                        }
-                    }
-                }
-            }
+            Text(count == 1 ? "1 investimento" : "\(count) investimentos")
+                .font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.75))
         }
         .foregroundStyle(.white)
-        .padding(20).frame(maxWidth:.infinity,alignment:.leading)
+        .padding(20).frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading)
         .background { CurrencyBackground(currency:currency) }
-        .contentShape(RoundedRectangle(cornerRadius:22,style:.continuous))
-        .onTapGesture { if funds.count == 1, let fund=funds.first { edit(fund) } }
         .accessibilityElement(children:.combine)
-        .accessibilityLabel("Saldo em \(currency.plural.lowercased()): \(AppFormat.money(total,in:currency,hidden:hideAmounts))")
+    }
+}
+
+/// One dot per carousel page; the active one stretches. Tapping a dot jumps to its page.
+private struct PageDots:View {
+    let pages:[InvestmentPage]
+    let active:InvestmentPage
+    let select:(InvestmentPage)->Void
+    var body:some View {
+        HStack(spacing:6) {
+            ForEach(pages) { page in
+                Button { select(page) } label: {
+                    Capsule()
+                        .fill(page == active ? page.tint : Color.secondary.opacity(0.3))
+                        .frame(width:page == active ? 18 : 7,height:7)
+                        .padding(.vertical,6)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain).pointerCursor()
+                .accessibilityLabel(page.accessibilityName)
+                .accessibilityAddTraits(page == active ? .isSelected : [])
+            }
+        }
+        .frame(maxWidth:.infinity)
+    }
+}
+
+private enum InvestmentPage:Hashable,Identifiable {
+    case reais
+    case foreign(ForeignCurrency)
+    var id:Self { self }
+
+    var listTitle:String {
+        switch self {
+        case .reais: "Seus investimentos"
+        case .foreign(let currency): "Seus investimentos em \(currency.plural.lowercased())"
+        }
+    }
+    var accessibilityName:String {
+        switch self {
+        case .reais: "Reais"
+        case .foreign(let currency): currency.plural
+        }
+    }
+    var tint:Color {
+        switch self {
+        case .reais: AppBrand.accent
+        case .foreign(let currency): currency.base
+        }
     }
 }
 
