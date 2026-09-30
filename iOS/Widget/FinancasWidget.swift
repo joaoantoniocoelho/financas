@@ -40,8 +40,8 @@ private struct ShortcutsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                BrandRing(lineWidth: 2)
-                    .frame(width: 13, height: 13)
+                BrandRing(lineWidth: 1.4)
+                    .frame(width: 15, height: 15)
                 Text("Acesso rápido")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.55))
@@ -59,7 +59,7 @@ private struct ShortcutsView: View {
                     .opacity(0.97)
                 // The app's mark, large and faint, bleeding off the top right corner.
                 GeometryReader { geometry in
-                    BrandRing(lineWidth: 16)
+                    BrandRing(lineWidth: 5)
                         .frame(width: geometry.size.height * 1.15, height: geometry.size.height * 1.15)
                         .opacity(0.07)
                         .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
@@ -88,26 +88,29 @@ private struct ShortcutsView: View {
     }
 }
 
-/// The app's mark: an open ring with a rising arrow.
+/// The app's mark: a fine open ring whose small rising chart ends in the gap, like the current month.
+/// Same numbers as MarkGeometry in the app (a 100-unit artboard, y down).
 private struct BrandRing: View {
     var lineWidth: CGFloat
+    private static let chart: [CGPoint] = [CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26)]
+
     var body: some View {
         GeometryReader { geometry in
             let side = min(geometry.size.width, geometry.size.height)
-            let scale = side / 100
+            // The ring spans the whole frame: its 68 units become `side`.
+            let scale = side / 68
+            let point = { (p: CGPoint) in CGPoint(x: side / 2 + (p.x - 50) * scale, y: side / 2 + (p.y - 50) * scale) }
+            let style = StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+            let tip = point(Self.chart[Self.chart.count - 1])
+            let dot = max(4.2 * scale, lineWidth * 1.2)
             ZStack {
-                Circle()
-                    .trim(from: 0, to: 0.75)
-                    .stroke(Brand.mint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                    .padding(lineWidth / 2)
-                Path { path in
-                    path.move(to: CGPoint(x: 34 * scale, y: 66 * scale))
-                    path.addLine(to: CGPoint(x: 66 * scale, y: 34 * scale))
-                    path.move(to: CGPoint(x: 42 * scale, y: 34 * scale))
-                    path.addLine(to: CGPoint(x: 66 * scale, y: 34 * scale))
-                    path.addLine(to: CGPoint(x: 66 * scale, y: 58 * scale))
-                }
-                .stroke(Brand.mint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+                Path { $0.addArc(center: CGPoint(x: side / 2, y: side / 2), radius: side / 2 - lineWidth / 2, startAngle: .degrees(0), endAngle: .degrees(270), clockwise: false) }
+                    .stroke(Brand.mint, style: style)
+                Path { $0.addLines(Self.chart.map(point)) }
+                    .stroke(Brand.mint, style: style)
+                Circle().fill(Brand.mint)
+                    .frame(width: dot * 2, height: dot * 2)
+                    .position(tip)
             }
             .frame(width: side, height: side)
         }

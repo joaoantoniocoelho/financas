@@ -52,29 +52,55 @@ struct CompactMenuItem: View {
     }
 }
 
+/// The mark on a 100-unit artboard, y down: a fine open ring, gap at the top right, and a small rising
+/// chart whose last point sits in the gap, like the current month. The splash, the app icon
+/// (scripts/generate-icon.swift) and the widget draw from these same numbers.
+enum MarkGeometry {
+    static let center = CGPoint(x: 50, y: 50)
+    static let radius: CGFloat = 34
+    static let chart: [CGPoint] = [CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26)]
+    static let dotRadius: CGFloat = 4.2
+    static let haloRadius: CGFloat = 8.5
+    static let stroke: CGFloat = 2.6
+
+    /// Maps an artboard point into `rect` (a square).
+    static func point(_ p: CGPoint, in rect: CGRect) -> CGPoint {
+        CGPoint(x: rect.minX + p.x / 100 * rect.width, y: rect.minY + p.y / 100 * rect.height)
+    }
+
+    /// From 3 o'clock clockwise round to 12 o'clock.
+    static func ring(in rect: CGRect) -> Path {
+        Path { $0.addArc(center: point(center, in: rect), radius: radius / 100 * rect.width, startAngle: .degrees(0), endAngle: .degrees(270), clockwise: false) }
+    }
+
+    static func chartPath(in rect: CGRect) -> Path {
+        Path { $0.addLines(chart.map { point($0, in: rect) }) }
+    }
+
+    static func dot(in rect: CGRect, radius r: CGFloat = dotRadius) -> Path {
+        let c = point(chart[chart.count - 1], in: rect), size = r / 100 * rect.width
+        return Path(ellipseIn: CGRect(x: c.x - size, y: c.y - size, width: size * 2, height: size * 2))
+    }
+}
+
 #if os(macOS)
 extension AppBrand {
     /// Template artwork lets macOS choose the correct color for the menu bar.
     static let menuBarIcon: NSImage = {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
-            NSColor.black.setStroke()
-            let ring = NSBezierPath()
-            ring.appendArc(withCenter: NSPoint(x: 9, y: 9), radius: 7,
-                           startAngle: 90, endAngle: 360)
-            ring.lineWidth = 1.7
-            ring.lineCapStyle = .round
-            ring.stroke()
-
-            let arrow = NSBezierPath()
-            arrow.move(to: NSPoint(x: 6.5, y: 6.5))
-            arrow.line(to: NSPoint(x: 13, y: 13))
-            arrow.move(to: NSPoint(x: 8, y: 13))
-            arrow.line(to: NSPoint(x: 13, y: 13))
-            arrow.line(to: NSPoint(x: 13, y: 8))
-            arrow.lineWidth = 1.7
-            arrow.lineCapStyle = .round
-            arrow.lineJoinStyle = .round
-            arrow.stroke()
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+            // The ring spans 15 pt; strokes stay at a legible 1.3 pt.
+            let rect = CGRect(x: 9 - 7.5 / 0.68, y: 9 - 7.5 / 0.68, width: 15 / 0.68, height: 15 / 0.68)
+            let context = NSGraphicsContext.current!.cgContext
+            context.setStrokeColor(NSColor.black.cgColor)
+            context.setFillColor(NSColor.black.cgColor)
+            context.setLineWidth(1.3)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.addPath(MarkGeometry.ring(in: rect).cgPath)
+            context.addPath(MarkGeometry.chartPath(in: rect).cgPath)
+            context.strokePath()
+            context.addPath(MarkGeometry.dot(in: rect, radius: 7).cgPath)
+            context.fillPath()
             return true
         }
         image.isTemplate = true
@@ -84,20 +110,20 @@ extension AppBrand {
 }
 #endif
 
-/// A rising path within an open circle: room to grow.
+/// The mark on its deep green tile.
 struct BrandMark: View {
     var body: some View {
         GeometryReader { geometry in
             let side = min(geometry.size.width, geometry.size.height)
+            let rect = CGRect(x: side * 0.09, y: side * 0.09, width: side * 0.82, height: side * 0.82)
+            let stroke = StrokeStyle(lineWidth: max(side * 0.028, 1.2), lineCap: .round, lineJoin: .round)
             ZStack {
-                RoundedRectangle(cornerRadius: side * 0.28).fill(AppBrand.forest)
-                Circle().trim(from: 0, to: 0.75)
-                    .stroke(AppBrand.mint, style: StrokeStyle(lineWidth: side * 0.065, lineCap: .round))
-                    .padding(side * 0.22)
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: side * 0.34, weight: .medium))
-                    .foregroundStyle(AppBrand.mint)
+                RoundedRectangle(cornerRadius: side * 0.28, style: .continuous).fill(AppBrand.forest)
+                MarkGeometry.ring(in: rect).stroke(AppBrand.mint, style: stroke)
+                MarkGeometry.chartPath(in: rect).stroke(AppBrand.mint, style: stroke)
+                MarkGeometry.dot(in: rect).fill(AppBrand.mint)
             }
+            .frame(width: side, height: side)
         }
         .accessibilityHidden(true)
     }

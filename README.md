@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="Resources/AppIcon.png" alt="Finanças icon: an upward arrow inside an open circle" width="128" height="128">
+  <img src="Resources/AppIcon.png" alt="Finanças icon: a small rising chart inside a fine open circle, ending in a dot at the gap" width="128" height="128">
   <h1>Finanças</h1>
   <p><strong>Your money, with clarity.</strong></p>
   <p>A native app to organize your month, track expenses, and plan what comes next.<br>No account, no server. Your data stays on your Mac and iPhone.</p>
