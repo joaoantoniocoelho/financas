@@ -31,9 +31,9 @@ private struct Provider: TimelineProvider {
 
 private enum Brand {
     static let mint = Color(red: 0.76, green: 0.91, blue: 0.64)
-    /// Neutral dark graphite, close to the system's own dark widgets.
-    static let graphiteTop = Color(red: 0.145, green: 0.15, blue: 0.15)
-    static let graphiteBottom = Color(red: 0.10, green: 0.105, blue: 0.105)
+    /// The app icon's deep green, so the widget sits next to it as one piece.
+    static let greenTop = Color(red: 0.06, green: 0.27, blue: 0.20)
+    static let greenBottom = Color(red: 0.02, green: 0.12, blue: 0.09)
 }
 
 private struct ShortcutsView: View {
@@ -42,9 +42,9 @@ private struct ShortcutsView: View {
             HStack(spacing: 6) {
                 BrandRing(lineWidth: 1.4)
                     .frame(width: 15, height: 15)
-                Text("Acesso rápido")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.55))
+                Text("ACESSO RÁPIDO")
+                    .font(.system(size: 11, weight: .semibold)).tracking(1.6)
+                    .foregroundStyle(Brand.mint.opacity(0.9))
             }
             Spacer(minLength: 0)
             HStack(spacing: 0) {
@@ -53,19 +53,7 @@ private struct ShortcutsView: View {
                 shortcut("Entrada", "arrow.down", "new/income")
             }
         }
-        .containerBackground(for: .widget) {
-            ZStack {
-                LinearGradient(colors: [Brand.graphiteTop, Brand.graphiteBottom], startPoint: .top, endPoint: .bottom)
-                    .opacity(0.97)
-                // The app's mark, large and faint, bleeding off the top right corner.
-                GeometryReader { geometry in
-                    BrandRing(lineWidth: 5)
-                        .frame(width: geometry.size.height * 1.15, height: geometry.size.height * 1.15)
-                        .opacity(0.07)
-                        .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
-                }
-            }
-        }
+        .containerBackground(for: .widget) { WidgetBackground() }
     }
 
     private func shortcut(_ title: String, _ symbol: String, _ route: String) -> some View {
@@ -75,15 +63,42 @@ private struct ShortcutsView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Brand.mint)
                     .frame(width: 46, height: 46)
-                    .background(.white.opacity(0.08), in: Circle())
-                    .overlay(Circle().strokeBorder(.white.opacity(0.08), lineWidth: 1))
+                    .background(Brand.mint.opacity(0.1), in: Circle())
+                    .overlay(Circle().strokeBorder(Brand.mint.opacity(0.2), lineWidth: 1))
                     .widgetAccentable()
                 Text(title)
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(.white.opacity(0.9))
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+}
+
+/// The app icon's deep green with the splash's ledger rules, soft light and the mark.
+private struct WidgetBackground: View {
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Brand.greenTop, Brand.greenBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            GeometryReader { geometry in
+                // Faint ledger rules and a soft light, as in the splash and the icon.
+                VStack(spacing: 0) {
+                    ForEach(0..<6, id: \.self) { _ in
+                        Spacer(minLength: 0)
+                        Rectangle().fill(.white.opacity(0.045)).frame(height: 1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                RadialGradient(colors: [Brand.mint.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: geometry.size.height * 0.8)
+                    .frame(width: geometry.size.height * 1.6, height: geometry.size.height * 1.6)
+                    .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
+                // The app's mark, large and faint, bleeding off the top right corner.
+                BrandRing(lineWidth: 4)
+                    .frame(width: geometry.size.height * 1.15, height: geometry.size.height * 1.15)
+                    .opacity(0.1)
+                    .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
+            }
         }
     }
 }
