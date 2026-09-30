@@ -231,7 +231,7 @@ private struct MobileRootView: View {
         case .recurring:
             RecurringEditor(item: RecurringExpense(id: 0, description: "", category: "Outros", amount: 0, dueDay: nil, paymentMethod: .pix, notes: "", active: true), addToCurrentMonth: true)
         case .investment:
-            if let fund = store.investmentFunds.first {
+            if let fund = store.realFunds.first {
                 InvestmentMovementEditor(item: InvestmentMovement(id: 0, monthID: month.id, fundID: fund.id, date: .now, kind: .contribution, amount: 0, notes: ""))
             } else {
                 InvestmentFundEditor(item: InvestmentFund(id: 0, name: "", openingBalance: 0, currentBalance: 0, isEmergencyReserve: false))

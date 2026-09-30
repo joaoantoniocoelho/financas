@@ -36,6 +36,11 @@ struct InvestmentsView: View {
                         }
                     }
 
+                    ForEach(store.foreignHoldings,id:\.currency) { holding in
+                        ForeignCurrencyCard(currency:holding.currency,funds:holding.funds,total:holding.total) { editingFund=$0 }
+                    }
+                    .entrance(2)
+
                     EmergencyReserveCard(funds:store.emergencyReserveFunds,balance:store.emergencyReserveBalance,fixedExpenses:store.monthlyFixedExpenseBaseline,months:store.emergencyReserveMonths)
                         .entrance(2)
 
@@ -121,7 +126,7 @@ struct InvestmentsView: View {
     static let previewCount = 3
 
     private func newMovement(_ month: BudgetMonth) {
-        guard let fund=store.investmentFunds.first else { newFund(); return }
+        guard let fund=store.realFunds.first else { newFund(); return }
         editing=InvestmentMovement(id:0,monthID:month.id,fundID:fund.id,date:.now,kind:.contribution,amount:0,notes:"")
     }
 
@@ -234,10 +239,18 @@ private struct FundTypeTotal:View {
             HStack {
                 Text("Total em \(type.rawValue.lowercased())").foregroundStyle(.secondary)
                 Spacer()
-                Text(AppFormat.money(funds.reduce(0) { $0 + $1.currentBalance },hidden:hideAmounts)).fontWeight(.semibold).monospacedDigit()
+                Text(totalText).fontWeight(.semibold).monospacedDigit()
             }
             .font(.subheadline).padding(.horizontal,compact ? 0 : 6).padding(.bottom,4)
         }
+    }
+
+    /// Balances in different currencies are never added together.
+    private var totalText:String {
+        Dictionary(grouping:funds,by:\.foreignCurrency)
+            .sorted { ($0.key?.rawValue ?? "") < ($1.key?.rawValue ?? "") }
+            .map { AppFormat.money($0.value.reduce(0) { $0 + $1.currentBalance },in:$0.key,hidden:hideAmounts) }
+            .joined(separator:" + ")
     }
 }
 
@@ -302,16 +315,17 @@ private struct FundCard:View {
     let edit:()->Void
     let delete:()->Void
     var body:some View {
+        if let currency=fund.foreignCurrency { foreignCard(currency) } else { realCard }
+    }
+
+    private var realCard:some View {
         VStack(alignment:.leading,spacing:10) {
             HStack(alignment:.top) {
                 Image(systemName:fund.assetType.systemImage)
                     .foregroundStyle(fund.isEmergencyReserve ? .green : .accentColor)
                 Text(fund.name).font(.headline).lineLimit(2)
                 Spacer()
-                CompactActionMenu {
-                    CompactMenuItem("Editar", action: edit)
-                    CompactMenuItem("Excluir", role: .destructive, action: delete)
-                }
+                menu
             }
             Text(AppFormat.money(fund.currentBalance,hidden:hideAmounts)).font(.title2.bold()).monospacedDigit()
             HStack(spacing:6) {
@@ -326,6 +340,31 @@ private struct FundCard:View {
         .background(AppBrand.canvas,in:RoundedRectangle(cornerRadius:16))
         .contentShape(RoundedRectangle(cornerRadius:16)).onTapGesture(perform:edit)
     }
+
+    /// Foreign balances wear their currency's colors, so they never read as reais.
+    private func foreignCard(_ currency:ForeignCurrency) -> some View {
+        VStack(alignment:.leading,spacing:10) {
+            HStack(alignment:.top) {
+                Image(systemName:currency.systemImage).foregroundStyle(currency.highlight)
+                Text(fund.name).font(.headline).lineLimit(2)
+                Spacer()
+                menu.tint(.white)
+            }
+            Text(AppFormat.money(fund.currentBalance,in:currency,hidden:hideAmounts)).font(.title2.bold()).monospacedDigit()
+            Text("\(currency.name) · fora do total em reais").font(.caption).foregroundStyle(.white.opacity(0.75))
+        }
+        .foregroundStyle(.white)
+        .padding(14).frame(maxWidth:.infinity,minHeight:120,alignment:.leading)
+        .background { CurrencyBackground(currency:currency,cornerRadius:16) }
+        .contentShape(RoundedRectangle(cornerRadius:16)).onTapGesture(perform:edit)
+    }
+
+    private var menu:some View {
+        CompactActionMenu {
+            CompactMenuItem("Editar", action: edit)
+            CompactMenuItem("Excluir", role: .destructive, action: delete)
+        }
+    }
 }
 
 struct InvestmentFundEditor:View {
@@ -339,8 +378,15 @@ struct InvestmentFundEditor:View {
             Picker("Tipo",selection:$item.assetType) {
                 ForEach(InvestmentAssetType.allCases) { Text($0.rawValue).tag($0) }
             }
-            DecimalField(item.id == 0 ? "Saldo inicial" : "Saldo atual",value:$item.currentBalance)
-            Toggle("Reserva de emergência",isOn:$item.isEmergencyReserve)
+            if item.assetType == .currency {
+                Picker("Moeda",selection:$item.currency) {
+                    ForEach(ForeignCurrency.allCases) { Text("\($0.name) (\($0.symbol))").tag($0) }
+                }
+            }
+            DecimalField(balanceTitle,value:$item.currentBalance)
+            if item.foreignCurrency == nil {
+                Toggle("Reserva de emergência",isOn:$item.isEmergencyReserve)
+            }
             Text(caption).font(.caption).foregroundStyle(.secondary)
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
             EditorButtons(saveEnabled:canSave,save:save)
@@ -350,9 +396,18 @@ struct InvestmentFundEditor:View {
         var text = item.id == 0
             ? "O saldo inicial não é descontado da conta nem conta como aporte do mês."
             : "Alterar o saldo corrige o valor do investimento (rendimentos, cotação) sem registrar aporte ou resgate e sem mexer no saldo da conta."
-        if item.assetType == .currency || item.assetType == .crypto { text += " Informe o valor convertido em reais." }
-        if item.isEmergencyReserve { text += " Investimentos marcados como reserva somam no contador de reserva de emergência." }
+        if let currency=item.foreignCurrency {
+            text += " Informe o valor em \(currency.plural.lowercased()), não em reais. Esse saldo fica separado do total investido e da reserva de emergência."
+        } else {
+            if item.assetType == .crypto { text += " Informe o valor convertido em reais." }
+            if item.isEmergencyReserve { text += " Investimentos marcados como reserva somam no contador de reserva de emergência." }
+        }
         return text
+    }
+    private var balanceTitle:String {
+        let title = item.id == 0 ? "Saldo inicial" : "Saldo atual"
+        guard let currency=item.foreignCurrency else { return title }
+        return "\(title) em \(currency.plural.lowercased()) (\(currency.symbol))"
     }
     private var canSave:Bool { !item.name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && item.currentBalance >= 0 }
     private func save() {
@@ -398,7 +453,7 @@ struct InvestmentMovementEditor:View {
                 ForEach(InvestmentMovementKind.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented)
             Picker("Fundo",selection:$item.fundID) {
-                ForEach(store.investmentFunds) { Text($0.name).tag($0.id) }
+                ForEach(store.realFunds) { Text($0.name).tag($0.id) }
             }
             DatePicker("Data",selection:$item.date,displayedComponents:.date)
             DecimalField("Valor",value:$item.amount)
@@ -409,7 +464,7 @@ struct InvestmentMovementEditor:View {
             EditorButtons(saveEnabled:canSave,save:save)
         }.editorSheet(item.id == 0 ? "Nova movimentação" : "Editar movimentação", width:460, saveEnabled:canSave, save:save)
     }
-    private var canSave: Bool { item.amount > 0 && store.investmentFunds.contains(where:{$0.id == item.fundID}) }
+    private var canSave: Bool { item.amount > 0 && store.realFunds.contains(where:{$0.id == item.fundID}) }
     private func save() { store.save(item);dismiss() }
 }
 
@@ -437,5 +492,114 @@ private struct ReserveRing: View {
         }
         .onChange(of: progress) { _, value in withAnimation(.snappy) { shown = value } }
         .accessibilityLabel("Meta de seis meses: \(Int(min(progress, 1) * 100))%")
+    }
+}
+
+/// The balance held in one foreign currency, kept apart from the totals in reais.
+private struct ForeignCurrencyCard:View {
+    @Environment(\.hideAmounts) private var hideAmounts
+    @Environment(\.compactLayout) private var compact
+    let currency:ForeignCurrency
+    let funds:[InvestmentFund]
+    let total:Double
+    let edit:(InvestmentFund)->Void
+
+    var body:some View {
+        VStack(alignment:.leading,spacing:16) {
+            HStack(spacing:10) {
+                Text(currency.symbol)
+                    .font(.system(size:17,weight:.bold,design:.rounded))
+                    .foregroundStyle(currency.deep)
+                    .frame(width:32,height:32)
+                    .background(currency.highlight,in:Circle())
+                VStack(alignment:.leading,spacing:1) {
+                    Text(currency.plural.uppercased()).font(.caption.weight(.semibold)).tracking(1.5).foregroundStyle(currency.highlight)
+                    Text("Fora do total em reais").font(.caption2).foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            Text(AppFormat.money(total,in:currency,hidden:hideAmounts))
+                .font(.system(size:compact ? 34 : 38,weight:.medium,design:.rounded)).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
+            if funds.count > 1 {
+                ScrollView(.horizontal,showsIndicators:false) {
+                    HStack(spacing:8) {
+                        ForEach(funds) { fund in
+                            Button { edit(fund) } label: {
+                                VStack(alignment:.leading,spacing:2) {
+                                    Text(fund.name).font(.caption2.weight(.medium)).foregroundStyle(.white.opacity(0.75)).lineLimit(1)
+                                    Text(AppFormat.money(fund.currentBalance,in:currency,hidden:hideAmounts)).font(.footnote.weight(.semibold)).monospacedDigit()
+                                }
+                                .padding(.horizontal,10).padding(.vertical,8)
+                                .background(.white.opacity(0.12),in:RoundedRectangle(cornerRadius:12,style:.continuous))
+                            }
+                            .buttonStyle(.plain).pointerCursor()
+                        }
+                    }
+                }
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(20).frame(maxWidth:.infinity,alignment:.leading)
+        .background { CurrencyBackground(currency:currency) }
+        .contentShape(RoundedRectangle(cornerRadius:22,style:.continuous))
+        .onTapGesture { if funds.count == 1, let fund=funds.first { edit(fund) } }
+        .accessibilityElement(children:.combine)
+        .accessibilityLabel("Saldo em \(currency.plural.lowercased()): \(AppFormat.money(total,in:currency,hidden:hideAmounts))")
+    }
+}
+
+/// Deep blue with a faint ring of twelve gold stars for the euro.
+private struct CurrencyBackground:View {
+    let currency:ForeignCurrency
+    var cornerRadius:CGFloat = 22
+
+    var body:some View {
+        let shape=RoundedRectangle(cornerRadius:cornerRadius,style:.continuous)
+        ZStack {
+            LinearGradient(colors:[currency.deep,currency.base],startPoint:.topLeading,endPoint:.bottomTrailing)
+            RadialGradient(colors:[.white.opacity(0.14),.clear],center:.topTrailing,startRadius:0,endRadius:220)
+            StarRing(color:currency.highlight.opacity(0.22))
+                .frame(width:150,height:150)
+                .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topTrailing)
+                .offset(x:40,y:-34)
+        }
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(.white.opacity(0.1)))
+    }
+}
+
+private struct StarRing:View {
+    let color:Color
+    var body:some View {
+        GeometryReader { geometry in
+            let radius=min(geometry.size.width,geometry.size.height) / 2 - 10
+            ForEach(0..<12,id:\.self) { index in
+                let angle=Double(index) / 12 * 2 * .pi
+                Image(systemName:"star.fill")
+                    .font(.system(size:13))
+                    .foregroundStyle(color)
+                    .position(x:geometry.size.width / 2 + radius * sin(angle),y:geometry.size.height / 2 - radius * cos(angle))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private extension ForeignCurrency {
+    var deep:Color {
+        switch self {
+        case .euro: Color(red:0.02,green:0.11,blue:0.36)
+        }
+    }
+    var base:Color {
+        switch self {
+        case .euro: Color(red:0.0,green:0.24,blue:0.62)
+        }
+    }
+    var highlight:Color {
+        switch self {
+        case .euro: Color(red:1.0,green:0.8,blue:0.0)
+        }
     }
 }

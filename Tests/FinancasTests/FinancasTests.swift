@@ -107,11 +107,39 @@ final class FinancasTests: XCTestCase {
     func testEmergencyReserveSumsEveryMarkedFund() throws {
         let database=try makeDatabase()
         try database.saveRecurring(RecurringExpense(id:0,description:"Aluguel",category:"Moradia",amount:1000,dueDay:5,paymentMethod:.pix,notes:"",active:true))
-        try database.saveInvestmentFund(InvestmentFund(id:0,name:"Dólar",assetType:.currency,openingBalance:0,currentBalance:1467.42,isEmergencyReserve:true))
+        try database.saveInvestmentFund(InvestmentFund(id:0,name:"Tesouro Selic",assetType:.fixedIncome,openingBalance:0,currentBalance:1467.42,isEmergencyReserve:true))
         let store=AppStore(database:database)
         XCTAssertEqual(store.emergencyReserveFunds.count,2)
         XCTAssertEqual(store.emergencyReserveBalance,10000,accuracy:0.001)
         XCTAssertEqual(store.emergencyReserveMonths,10,accuracy:0.001)
+    }
+
+    @MainActor
+    func testEuroBalanceStaysApartFromReais() throws {
+        let database=try makeDatabase()
+        try database.saveInvestmentFund(InvestmentFund(id:0,name:"Conta em euro",assetType:.currency,openingBalance:0,currentBalance:1500,isEmergencyReserve:true,currency:.euro))
+        let store=AppStore(database:database)
+        let euro=try XCTUnwrap(store.investmentFunds.first(where:{$0.name == "Conta em euro"}))
+        XCTAssertEqual(euro.foreignCurrency,.euro)
+        XCTAssertEqual(euro.currentBalance,1500,accuracy:0.001)
+        XCTAssertFalse(euro.isEmergencyReserve)
+        XCTAssertEqual(store.totalInvested,10822.01,accuracy:0.001)
+        XCTAssertEqual(store.emergencyReserveBalance,8532.58,accuracy:0.001)
+        XCTAssertEqual(store.foreignHoldings.count,1)
+        XCTAssertEqual(store.foreignHoldings.first?.total ?? 0,1500,accuracy:0.001)
+        XCTAssertFalse(store.realFunds.contains(where:{$0.id == euro.id}))
+
+        let monthID=try database.createMonth(year:2026,month:10)
+        XCTAssertThrowsError(try database.saveInvestmentMovement(InvestmentMovement(id:0,monthID:monthID,fundID:euro.id,date:.now,kind:.contribution,amount:100,notes:"")))
+    }
+
+    func testFundWithMovementsCannotBecomeForeignCurrency() throws {
+        let database=try makeDatabase()
+        let monthID=try database.createMonth(year:2026,month:10)
+        var fund=try XCTUnwrap(database.investmentFunds().last)
+        try database.saveInvestmentMovement(InvestmentMovement(id:0,monthID:monthID,fundID:fund.id,date:.now,kind:.contribution,amount:100,notes:""))
+        fund.assetType = .currency
+        XCTAssertThrowsError(try database.saveInvestmentFund(fund))
     }
 
     @MainActor

@@ -133,6 +133,37 @@ enum InvestmentAssetType: String, CaseIterable, Identifiable {
     }
 }
 
+/// The currency a foreign-currency investment is held in. Its balance is kept in that currency
+/// and never added to the totals in reais.
+enum ForeignCurrency: String, CaseIterable, Identifiable {
+    case euro = "EUR"
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .euro: "Euro"
+        }
+    }
+
+    var plural: String {
+        switch self {
+        case .euro: "Euros"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .euro: "€"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .euro: "eurosign.circle.fill"
+        }
+    }
+}
+
 struct InvestmentFund: Identifiable, Hashable {
     var id: Int64
     var name: String
@@ -140,9 +171,13 @@ struct InvestmentFund: Identifiable, Hashable {
     var openingBalance: Double
     var currentBalance: Double
     var isEmergencyReserve: Bool
+    var currency: ForeignCurrency = .euro
 
     /// Goals (like a trip) hold money but don't count toward the month's investment contributions.
     var countsAsInvestment: Bool { assetType != .goal }
+
+    /// The currency the balance is in, or nil when it's in reais.
+    var foreignCurrency: ForeignCurrency? { assetType == .currency ? currency : nil }
 }
 
 enum InvestmentMovementKind: String, CaseIterable, Identifiable {
@@ -198,6 +233,22 @@ enum AppFormat {
     static func money(_ value: Double, hidden: Bool = false) -> String {
         if hidden { return "R$ ••••" }
         return currency.string(from: NSNumber(value: value)) ?? "R$ 0,00"
+    }
+
+    private static let foreignFormatters: [ForeignCurrency: NumberFormatter] = Dictionary(uniqueKeysWithValues: ForeignCurrency.allCases.map { code in
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.locale = Locale(identifier: "pt_BR")
+        f.currencyCode = code.rawValue
+        f.currencySymbol = code.symbol
+        return (code, f)
+    })
+
+    /// A balance in its own currency, or in reais when `currency` is nil.
+    static func money(_ value: Double, in currency: ForeignCurrency?, hidden: Bool = false) -> String {
+        guard let currency, let formatter = foreignFormatters[currency] else { return money(value, hidden: hidden) }
+        if hidden { return "\(currency.symbol) ••••" }
+        return formatter.string(from: NSNumber(value: value)) ?? "\(currency.symbol) 0,00"
     }
 
     static let date: DateFormatter = {

@@ -48,8 +48,17 @@ final class AppStore: ObservableObject {
         return t
     }
 
-    var totalInvested:Double { investmentFunds.reduce(0) { $0 + $1.currentBalance } }
-    var emergencyReserveFunds:[InvestmentFund] { investmentFunds.filter(\.isEmergencyReserve) }
+    /// Funds held in reais: the only ones that add up into totals and can receive contributions or withdrawals.
+    var realFunds:[InvestmentFund] { investmentFunds.filter { $0.foreignCurrency == nil } }
+    var totalInvested:Double { realFunds.reduce(0) { $0 + $1.currentBalance } }
+    /// Foreign-currency funds grouped by currency, each total kept in its own currency.
+    var foreignHoldings:[(currency:ForeignCurrency,funds:[InvestmentFund],total:Double)] {
+        ForeignCurrency.allCases.compactMap { currency in
+            let funds=investmentFunds.filter { $0.foreignCurrency == currency }
+            return funds.isEmpty ? nil : (currency,funds,funds.reduce(0) { $0 + $1.currentBalance })
+        }
+    }
+    var emergencyReserveFunds:[InvestmentFund] { realFunds.filter(\.isEmergencyReserve) }
     var emergencyReserveBalance:Double { emergencyReserveFunds.reduce(0) { $0 + $1.currentBalance } }
     var monthlyFixedExpenseBaseline:Double { recurring.filter(\.active).reduce(0) { $0 + $1.amount } }
     var emergencyReserveMonths:Double {

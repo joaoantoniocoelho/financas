@@ -92,7 +92,8 @@ final class Database {
           is_emergency_reserve INTEGER NOT NULL DEFAULT 0,
           counts_as_investment INTEGER NOT NULL DEFAULT 1,
           active INTEGER NOT NULL DEFAULT 1,
-          asset_type TEXT NOT NULL DEFAULT 'Fundo de investimento'
+          asset_type TEXT NOT NULL DEFAULT 'Fundo de investimento',
+          currency TEXT NOT NULL DEFAULT 'EUR'
         );
         CREATE TABLE IF NOT EXISTS app_settings (
           key TEXT PRIMARY KEY, value REAL NOT NULL
@@ -124,6 +125,9 @@ final class Database {
         if try !hasColumn("asset_type", in:"investment_funds") {
             try execute("ALTER TABLE investment_funds ADD COLUMN asset_type TEXT NOT NULL DEFAULT 'Fundo de investimento'")
             try execute("UPDATE investment_funds SET asset_type=? WHERE counts_as_investment=0 OR lower(name)=lower('Viagem')",bindings:[InvestmentAssetType.goal.rawValue])
+        }
+        if try !hasColumn("currency", in:"investment_funds") {
+            try execute("ALTER TABLE investment_funds ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR'")
         }
     }
 
@@ -441,7 +445,8 @@ final class Database {
         var result:[InvestmentFund] = []
         try rows("""
         SELECT f.id,f.name,f.opening_balance,f.is_emergency_reserve,f.asset_type,
-               f.opening_balance + COALESCE(SUM(CASE m.kind WHEN 'Aporte' THEN m.amount ELSE -m.amount END),0)
+               f.opening_balance + COALESCE(SUM(CASE m.kind WHEN 'Aporte' THEN m.amount ELSE -m.amount END),0),
+               f.currency
         FROM investment_funds f
         LEFT JOIN investment_movements m ON m.fund_id=f.id
         WHERE f.active=1
@@ -451,7 +456,8 @@ final class Database {
             result.append(InvestmentFund(
                 id:sqlite3_column_int64(s,0), name:text(s,1), assetType:InvestmentAssetType(rawValue:text(s,4)) ?? .other,
                 openingBalance:sqlite3_column_double(s,2), currentBalance:sqlite3_column_double(s,5),
-                isEmergencyReserve:sqlite3_column_int(s,3) != 0
+                isEmergencyReserve:sqlite3_column_int(s,3) != 0,
+                currency:ForeignCurrency(rawValue:text(s,6)) ?? .euro
             ))
         }
         return result
@@ -465,20 +471,30 @@ final class Database {
         var duplicate = false
         try rows("SELECT 1 FROM investment_funds WHERE lower(name)=lower(?) AND id<>?",bindings:[name,item.id]) { _ in duplicate = true }
         guard !duplicate else { throw DatabaseError.message("Já existe um investimento chamado \(name).") }
+        // Movements are in reais, so they can't be mixed into a balance held in another currency.
+        if item.foreignCurrency != nil, item.id != 0, try movementCount(fundID:item.id) > 0 {
+            throw DatabaseError.message("Esse investimento tem movimentações em reais. Exclua as movimentações antes de mudá-lo para moeda estrangeira.")
+        }
         let movements = item.id == 0 ? 0 : try investmentFundBalance(id:item.id) - investmentFundOpeningBalance(id:item.id)
-        let bindings:[Any?] = [name,item.currentBalance - movements,item.isEmergencyReserve,item.countsAsInvestment,item.assetType.rawValue]
+        // Reserve coverage is measured in reais, so foreign balances stay out of it.
+        let isReserve = item.isEmergencyReserve && item.foreignCurrency == nil
+        let bindings:[Any?] = [name,item.currentBalance - movements,isReserve,item.countsAsInvestment,item.assetType.rawValue,item.currency.rawValue]
         if item.id == 0 {
-            try execute("INSERT INTO investment_funds(name,opening_balance,is_emergency_reserve,counts_as_investment,asset_type) VALUES(?,?,?,?,?)",bindings:bindings)
+            try execute("INSERT INTO investment_funds(name,opening_balance,is_emergency_reserve,counts_as_investment,asset_type,currency) VALUES(?,?,?,?,?,?)",bindings:bindings)
         } else {
-            try execute("UPDATE investment_funds SET name=?,opening_balance=?,is_emergency_reserve=?,counts_as_investment=?,asset_type=? WHERE id=?",bindings:bindings + [item.id])
+            try execute("UPDATE investment_funds SET name=?,opening_balance=?,is_emergency_reserve=?,counts_as_investment=?,asset_type=?,currency=? WHERE id=?",bindings:bindings + [item.id])
         }
     }
 
     func deleteInvestmentFund(_ id:Int64) throws {
-        var movements = 0
-        try rows("SELECT COUNT(*) FROM investment_movements WHERE fund_id=?",bindings:[id]) { movements = Int(sqlite3_column_int($0,0)) }
-        guard movements == 0 else { throw DatabaseError.message("Esse investimento tem movimentações registradas. Exclua as movimentações antes de excluí-lo.") }
+        guard try movementCount(fundID:id) == 0 else { throw DatabaseError.message("Esse investimento tem movimentações registradas. Exclua as movimentações antes de excluí-lo.") }
         try execute("DELETE FROM investment_funds WHERE id=?",bindings:[id])
+    }
+
+    private func movementCount(fundID:Int64) throws -> Int {
+        var count = 0
+        try rows("SELECT COUNT(*) FROM investment_movements WHERE fund_id=?",bindings:[fundID]) { count = Int(sqlite3_column_int($0,0)) }
+        return count
     }
 
     private func investmentFundOpeningBalance(id:Int64) throws -> Double {
@@ -501,6 +517,9 @@ final class Database {
 
     func saveInvestmentMovement(_ item:InvestmentMovement) throws {
         guard item.amount > 0 else { throw DatabaseError.message("Informe um valor maior que zero.") }
+        var foreign = false
+        try rows("SELECT 1 FROM investment_funds WHERE id=? AND asset_type=?",bindings:[item.fundID,InvestmentAssetType.currency.rawValue]) { _ in foreign = true }
+        guard !foreign else { throw DatabaseError.message("Investimentos em moeda estrangeira não recebem aportes nem resgates. Atualize o saldo editando o investimento.") }
         let old = item.id == 0 ? nil : try investmentMovementRecord(id:item.id)
         let oldFundEffect = old.map { fundEffect(kind:$0.kind,amount:$0.amount) } ?? 0
         let newFundEffect = fundEffect(kind:item.kind,amount:item.amount)
