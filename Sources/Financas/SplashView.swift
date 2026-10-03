@@ -242,7 +242,7 @@ struct SplashPlot {
             let lit = Splash.phase(chartProgress, share(ofMonth: index) - 0.04, share(ofMonth: index) + 0.06)
             context.stroke(
                 Path {
-                    $0.move(to: CGPoint(x: month.point.x, y: baseline));
+                    $0.move(to: CGPoint(x: month.point.x, y: baseline))
                     $0.addLine(to: CGPoint(x: month.point.x, y: baseline + 6))
                 },
                 with: .color(mint.opacity(0.25 * gridProgress)), lineWidth: 1)

@@ -38,9 +38,9 @@ struct ExpensesView: View {
     private var modeExpenses: [Expense] { store.expenses.filter { mode == .fixed ? $0.isRecurring : !$0.isRecurring } }
     var filtered: [Expense] {
         switch filter {
-        case .all: return modeExpenses;
-        case .invoice: return modeExpenses.filter { $0.status == .invoice };
-        case .pending: return modeExpenses.filter { $0.status == .pending };
+        case .all: return modeExpenses
+        case .invoice: return modeExpenses.filter { $0.status == .invoice }
+        case .pending: return modeExpenses.filter { $0.status == .pending }
         case .paid: return modeExpenses.filter { [.paid, .prepaid].contains($0.status) }
         }
     }
@@ -68,7 +68,7 @@ struct ExpensesView: View {
                 .sheet(isPresented: $showingInvoice) { InvoiceSheet() }
                 .sheet(item: $editingRecurring) { RecurringEditor(item: $0, addToCurrentMonth: true) }
                 .confirmationDialog("Quitar a fatura?", isPresented: $confirmInvoice, titleVisibility: .visible) {
-                    Button("Marcar lançamentos como pagos") { store.payInvoice() }.pointerCursor();
+                    Button("Marcar lançamentos como pagos") { store.payInvoice() }.pointerCursor()
                     Button("Cancelar", role: .cancel) {}.pointerCursor()
                 } message: {
                     Text("Todos os gastos em “Na fatura” passarão para “Pago”. Nenhuma nova despesa será criada.")
@@ -136,7 +136,7 @@ struct ExpensesView: View {
                                 ForEach(group.items) { expenseRow($0, showCategory: true) }
                             } header: {
                                 HStack {
-                                    Text(group.date.map { AppFormat.date.string(from: $0) } ?? "Sem data"); Spacer();
+                                    Text(group.date.map { AppFormat.date.string(from: $0) } ?? "Sem data"); Spacer()
                                     Text(AppFormat.money(group.total, hidden: hideAmounts)).monospacedDigit()
                                 }
                             }
@@ -147,7 +147,7 @@ struct ExpensesView: View {
                                 ForEach(group.items) { expenseRow($0, showCategory: false) }
                             } header: {
                                 HStack {
-                                    Text(group.category); Spacer();
+                                    Text(group.category); Spacer()
                                     Text(AppFormat.money(group.total, hidden: hideAmounts)).monospacedDigit()
                                 }
                             }
@@ -345,14 +345,14 @@ struct ExpensesView: View {
         HStack {
             if !compact { BrandIcon(symbol: item.isRecurring ? "repeat" : "cart", color: AppBrand.amber) }
             VStack(alignment: .leading) {
-                Text(item.description).fontWeight(.medium);
+                Text(item.description).fontWeight(.medium)
                 Text(
                     "\(showCategory ? item.category + " • " : "")\(item.paymentMethod.rawValue)\(dueDay(item))\(competence(item))\(item.includedInInitialBalance ? " • já incluído no saldo inicial" : "")"
                 ).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             AdaptiveStack(vertical: compact, spacing: compact ? 4 : 8) {
-                Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit();
+                Text(AppFormat.money(item.amount, hidden: hideAmounts)).monospacedDigit()
                 StatusBadge(item.status.rawValue, positive: [.paid, .prepaid].contains(item.status))
             }
             CompactActionMenu {
@@ -366,7 +366,7 @@ struct ExpensesView: View {
                         var copy = item; copy.includedInInitialBalance = true; store.save(copy)
                     }
                 }
-                Divider(); CompactMenuItem(item.isRecurring ? "Editar somente neste mês" : "Editar") { editing = item };
+                Divider(); CompactMenuItem(item.isRecurring ? "Editar somente neste mês" : "Editar") { editing = item }
                 CompactMenuItem(item.isRecurring ? "Excluir somente deste mês" : "Excluir", role: .destructive) {
                     store.delete(item)
                 }
@@ -374,8 +374,8 @@ struct ExpensesView: View {
         }.padding(.vertical, compact ? 6 : 10).contentShape(Rectangle()).onTapGesture { editing = item }
     }
     private func competence(_ item: Expense) -> String {
-        guard let y = item.competenceYear, let m = item.competenceMonth else { return "" };
-        return " • competência \(String(format:"%02d",m))/\(y)"
+        guard let y = item.competenceYear, let m = item.competenceMonth else { return "" }
+        return " • competência \(String(format: "%02d", m))/\(y)"
     }
     private func dueDay(_ item: Expense) -> String {
         guard mode == .fixed, let recurringID = item.recurringID,
@@ -508,7 +508,7 @@ struct ExpenseEditor: View {
             Toggle("Informar competência", isOn: $hasCompetence)
             if hasCompetence {
                 AdaptiveStack(vertical: compact) {
-                    OptionalIntField("Mês", value: $item.competenceMonth);
+                    OptionalIntField("Mês", value: $item.competenceMonth)
                     OptionalIntField("Ano", value: $item.competenceYear)
                 }
             }

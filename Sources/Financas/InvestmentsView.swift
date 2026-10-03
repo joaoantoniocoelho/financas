@@ -423,7 +423,7 @@ private struct EmergencyReserveCard: View {
                     ).font(.title.bold()).monospacedDigit()
                     if !funds.isEmpty {
                         Text(
-                            "\(AppFormat.money(balance,hidden:hideAmounts)) ÷ \(AppFormat.money(fixedExpenses,hidden:hideAmounts)) em gastos fixos mensais"
+                            "\(AppFormat.money(balance, hidden: hideAmounts)) ÷ \(AppFormat.money(fixedExpenses, hidden: hideAmounts)) em gastos fixos mensais"
                         )
                         .font(.caption).foregroundStyle(.secondary)
                     }
@@ -559,13 +559,15 @@ private struct InvestmentMovementRow: View {
                 .font(.title2).foregroundStyle(movement.kind == .contribution ? .green : .orange)
             VStack(alignment: .leading, spacing: 3) {
                 Text(movement.kind.rawValue).fontWeight(.medium)
-                Text("\(fundName) • \(AppFormat.date.string(from:movement.date))").font(.caption).foregroundStyle(
+                Text("\(fundName) • \(AppFormat.date.string(from: movement.date))").font(.caption).foregroundStyle(
                     .secondary)
                 if !movement.notes.isEmpty { Text(movement.notes).font(.caption).foregroundStyle(.secondary) }
             }
             Spacer()
-            Text("\(movement.kind == .contribution ? "+" : "−") \(AppFormat.money(movement.amount,hidden:hideAmounts))")
-                .font(.headline).monospacedDigit().fixedSize()
+            Text(
+                "\(movement.kind == .contribution ? "+" : "−") \(AppFormat.money(movement.amount, hidden: hideAmounts))"
+            )
+            .font(.headline).monospacedDigit().fixedSize()
             CompactActionMenu {
                 CompactMenuItem("Editar", action: edit)
                 CompactMenuItem("Excluir", role: .destructive, action: delete)

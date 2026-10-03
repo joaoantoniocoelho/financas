@@ -96,14 +96,14 @@ struct SettingsView: View {
                             ForEach(group.items) { item in
                                 HStack {
                                     Image(systemName: item.active ? "checkmark.circle.fill" : "pause.circle")
-                                        .foregroundStyle(item.active ? .green : .secondary);
+                                        .foregroundStyle(item.active ? .green : .secondary)
                                     VStack(alignment: .leading) {
-                                        Text(item.description);
+                                        Text(item.description)
                                         Text("\(item.paymentMethod.rawValue)\(item.dueDay.map{" • dia \($0)"} ?? "")")
                                             .font(.caption).foregroundStyle(.secondary)
-                                    }; Spacer(); Text(AppFormat.money(item.amount, hidden: hideAmounts));
+                                    }; Spacer(); Text(AppFormat.money(item.amount, hidden: hideAmounts))
                                     CompactActionMenu {
-                                        CompactMenuItem("Editar") { editing = item };
+                                        CompactMenuItem("Editar") { editing = item }
                                         CompactMenuItem(item.active ? "Desativar" : "Ativar") {
                                             var copy = item; copy.active.toggle(); store.save(copy)
                                         }; CompactMenuItem("Excluir", role: .destructive) { store.delete(item) }
@@ -137,9 +137,9 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(
                             "O backup é uma cópia completa do arquivo SQLite. Importar substitui todos os dados atuais."
-                        ).foregroundStyle(.secondary);
+                        ).foregroundStyle(.secondary)
                         HStack {
-                            Button(compact ? "Exportar…" : "Exportar backup…", action: exportBackup).pointerCursor();
+                            Button(compact ? "Exportar…" : "Exportar backup…", action: exportBackup).pointerCursor()
                             Button(compact ? "Importar…" : "Importar backup…", action: importBackup).pointerCursor()
                         }.buttonStyle(.bordered)
                     }.padding(compact ? 0 : 8)
@@ -211,7 +211,7 @@ struct SettingsView: View {
                 if store.selectedMonth != nil {
                     GroupBox("Zona de risco") {
                         AdaptiveStack(vertical: compact, spacing: 10) {
-                            Text("Excluir o mês atual e todos os seus lançamentos."); if !compact { Spacer() };
+                            Text("Excluir o mês atual e todos os seus lançamentos."); if !compact { Spacer() }
                             Button("Excluir mês…", role: .destructive) { confirmDeleteMonth = true }.pointerCursor()
                         }.padding(compact ? 0 : 8)
                     }
@@ -248,7 +248,7 @@ struct SettingsView: View {
         #endif
         .onDisappear { ollamaTask?.cancel() }
         .confirmationDialog("Excluir o mês atual?", isPresented: $confirmDeleteMonth, titleVisibility: .visible) {
-            Button("Excluir mês", role: .destructive) { store.deleteCurrentMonth() }.pointerCursor();
+            Button("Excluir mês", role: .destructive) { store.deleteCurrentMonth() }.pointerCursor()
             Button("Cancelar", role: .cancel) {}.pointerCursor()
         } message: {
             Text("Esta ação não pode ser desfeita.")
@@ -279,7 +279,7 @@ struct SettingsView: View {
         private func importBackup() { confirmImport = true }
     #endif
 
-    private func testOllama() {
+    func testOllama() {
         ollamaTask?.cancel()
         ollamaState = .testing
         let baseURL = ollamaBaseURL
@@ -298,7 +298,7 @@ struct SettingsView: View {
 }
 
 struct RecurringEditor: View {
-    @EnvironmentObject private var store: AppStore; @Environment(\.dismiss) private var dismiss;
+    @EnvironmentObject private var store: AppStore; @Environment(\.dismiss) private var dismiss
     @State var item: RecurringExpense
     var addToCurrentMonth = false
     private let categories = [
@@ -306,13 +306,13 @@ struct RecurringEditor: View {
     ]
     var body: some View {
         BrandForm {
-            TextField("Descrição", text: $item.description); DecimalField("Valor previsto", value: $item.amount);
-            Picker("Categoria", selection: $item.category) { ForEach(categories, id: \.self) { Text($0) } };
+            TextField("Descrição", text: $item.description); DecimalField("Valor previsto", value: $item.amount)
+            Picker("Categoria", selection: $item.category) { ForEach(categories, id: \.self) { Text($0) } }
             Picker("Pagamento", selection: $item.paymentMethod) {
                 ForEach(PaymentMethod.allCases) { Text($0.rawValue).tag($0) }
-            }; OptionalIntField("Dia de vencimento", value: $item.dueDay);
-            TextField("Observação", text: $item.notes, axis: .vertical).lineLimit(2...4);
-            Toggle("Ativo", isOn: $item.active);
+            }; OptionalIntField("Dia de vencimento", value: $item.dueDay)
+            TextField("Observação", text: $item.notes, axis: .vertical).lineLimit(2...4)
+            Toggle("Ativo", isOn: $item.active)
             Text(
                 addToCurrentMonth
                     ? "No mês atual, o lançamento será incluído como pendente. A mudança para “Na fatura” é manual; as demais formas serão pagas e descontadas do saldo."

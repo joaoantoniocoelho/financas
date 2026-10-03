@@ -795,9 +795,9 @@ final class Database {
         let (_, effect) = try investmentBalanceRecord(id: id); return effect
     }
     private func incomeBalanceRecord(id: Int64) throws -> (Int64, Double) {
-        var value: (Int64, Double) = (0, 0);
+        var value: (Int64, Double) = (0, 0)
         try rows("SELECT month_id,amount,status,balance_applied FROM income_entries WHERE id=?", bindings: [id]) {
-            let applied = sqlite3_column_int($0, 3) != 0;
+            let applied = sqlite3_column_int($0, 3) != 0
             value = (
                 sqlite3_column_int64($0, 0),
                 applied && text($0, 2) == IncomeStatus.received.rawValue ? sqlite3_column_double($0, 1) : 0
@@ -805,17 +805,17 @@ final class Database {
         }; return value
     }
     private func expenseBalanceRecord(id: Int64) throws -> (Int64, Double) {
-        var value: (Int64, Double) = (0, 0);
+        var value: (Int64, Double) = (0, 0)
         try rows("SELECT month_id,amount,status,balance_applied FROM monthly_expenses WHERE id=?", bindings: [id]) {
-            let paid = [ExpenseStatus.paid.rawValue, ExpenseStatus.prepaid.rawValue].contains(text($0, 2));
-            let applied = sqlite3_column_int($0, 3) != 0;
+            let paid = [ExpenseStatus.paid.rawValue, ExpenseStatus.prepaid.rawValue].contains(text($0, 2))
+            let applied = sqlite3_column_int($0, 3) != 0
             value = (sqlite3_column_int64($0, 0), paid && applied ? -sqlite3_column_double($0, 1) : 0)
         }; return value
     }
     private func investmentBalanceRecord(id: Int64) throws -> (Int64, Double) {
-        var value: (Int64, Double) = (0, 0);
+        var value: (Int64, Double) = (0, 0)
         try rows("SELECT month_id,actual_amount,status,balance_applied FROM investments WHERE id=?", bindings: [id]) {
-            let applied = sqlite3_column_int($0, 3) != 0;
+            let applied = sqlite3_column_int($0, 3) != 0
             value = (
                 sqlite3_column_int64($0, 0),
                 applied && text($0, 2) == InvestmentStatus.completed.rawValue ? -sqlite3_column_double($0, 1) : 0

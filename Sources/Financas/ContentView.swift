@@ -669,7 +669,7 @@ struct DashboardView: View {
                         } else {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(
-                                    "Pagos, pagos antecipadamente e na fatura • Total \(AppFormat.money(totalCategorySpending,hidden:hideAmounts))"
+                                    "Pagos, pagos antecipadamente e na fatura • Total \(AppFormat.money(totalCategorySpending, hidden: hideAmounts))"
                                 )
                                 .font(.caption).foregroundStyle(.secondary)
                                 AdaptiveStack(vertical: compact, spacing: 20) {
@@ -913,7 +913,7 @@ struct ExpectedIncomeCard: View {
                         )
                         .font(.subheadline).foregroundStyle(.secondary)
                         Text(
-                            "\(AppFormat.money(salary.amount,hidden:hideAmounts)) • \(AppFormat.date.string(from:salary.date))"
+                            "\(AppFormat.money(salary.amount, hidden: hideAmounts)) • \(AppFormat.date.string(from: salary.date))"
                         )
                         .font(.caption).foregroundStyle(.secondary)
                     } else {
@@ -971,7 +971,7 @@ struct MetricCard: View {
         _ title: String, _ value: Double, _ icon: String, color: Color = .accentColor, size: Size = .compact,
         caption: String? = nil
     ) {
-        self.title = title; self.value = value; self.icon = icon; self.color = color; self.size = size;
+        self.title = title; self.value = value; self.icon = icon; self.color = color; self.size = size
         self.caption = caption
     }
     var body: some View {
@@ -1002,7 +1002,7 @@ struct MonthEditor: View {
     @State var month: BudgetMonth
     var body: some View {
         BrandForm {
-            DecimalField("Saldo inicial", value: $month.initialBalance);
+            DecimalField("Saldo inicial", value: $month.initialBalance)
             DecimalField("Saldo atual", value: $month.currentBalance)
             Text(
                 "O saldo atual é atualizado ao receber entradas, pagar gastos ou realizar investimentos. Edite-o apenas para conciliar com a conta."
@@ -1018,7 +1018,7 @@ struct MonthEditor: View {
             }
             #if os(macOS)
                 HStack {
-                    Spacer(); Button("Cancelar") { dismiss() }.buttonStyle(.bordered).pointerCursor();
+                    Spacer(); Button("Cancelar") { dismiss() }.buttonStyle(.bordered).pointerCursor()
                     Button("Salvar", action: save).keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
                         .pointerCursor()
                 }

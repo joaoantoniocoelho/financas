@@ -95,7 +95,7 @@ struct AIExpenseView: View {
                         }
                         if busy {
                             HStack(spacing: 8) {
-                                ProgressView().controlSize(.small);
+                                ProgressView().controlSize(.small)
                                 Text("Estou organizando seus gastos…").font(.caption).foregroundStyle(.secondary)
                             }
                         } else {
@@ -141,7 +141,7 @@ struct AIExpenseView: View {
 
     private var acceptsText: Bool {
         switch mode {
-        case .capture, .missing: return true;
+        case .capture, .missing: return true
         default: return false
         }
     }
@@ -227,7 +227,7 @@ struct AIExpenseView: View {
                 drafts[index].payment = method
             case .date:
                 let dates = Set(ExpenseExtraction(text: input).dates.map(\.value))
-                let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX");
+                let formatter = DateFormatter(); formatter.locale = Locale(identifier: "en_US_POSIX")
                 formatter.dateFormat = "yyyy-MM-dd"
                 guard dates.count == 1, let value = dates.first, let date = formatter.date(from: value) else {
                     append("Informe uma data como 15/09/2026, hoje ou ontem."); return

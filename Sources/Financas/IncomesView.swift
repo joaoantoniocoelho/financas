@@ -146,10 +146,10 @@ struct IncomesView: View {
             CompactActionMenu {
                 if item.status != .received {
                     CompactMenuItem("Marcar como recebido") {
-                        var copy = item; copy.status = .received; if copy.date == nil { copy.date = .now };
+                        var copy = item; copy.status = .received; if copy.date == nil { copy.date = .now }
                         store.save(copy)
                     }
-                }; CompactMenuItem("Editar") { editing = item };
+                }; CompactMenuItem("Editar") { editing = item }
                 CompactMenuItem("Excluir", role: .destructive) { store.delete(item) }
             }
         }.padding(.vertical, compact ? 6 : 10).contentShape(Rectangle()).onTapGesture { editing = item }

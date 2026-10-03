@@ -277,7 +277,7 @@ final class AppStore: ObservableObject {
         }
     }
     func syncRecurring() {
-        guard let id = selectedMonthID else { return };
+        guard let id = selectedMonthID else { return }
         perform {
             try database.instantiateRecurring(monthID: id); try reloadMonth()
         }
