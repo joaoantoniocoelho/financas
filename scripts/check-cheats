@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# Fails when the branch silences tools instead of fixing code: suppression comments,
+# skipped/focused tests, or changes to the harness config itself.
+# Managed by claude-harness — do not edit in place; changes need human review.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+resolve_base() {
+  if [[ -n "${HARNESS_BASE:-}" ]]; then
+    git merge-base HEAD "$HARNESS_BASE"
+    return
+  fi
+  local candidate
+  candidate="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+  for ref in $candidate origin/main origin/master main master; do
+    if git rev-parse -q --verify "$ref^{commit}" >/dev/null; then
+      git merge-base HEAD "$ref" 2>/dev/null && return
+    fi
+  done
+  git rev-parse HEAD
+}
+
+BASE="$(resolve_base)"
+ALLOW_CONFIG="${HARNESS_ALLOW_CONFIG_CHANGE:-}"
+failures=()
+
+TS_PATTERNS='eslint-disable|@ts-ignore|@ts-expect-error|@ts-nocheck|\bas[[:space:]]+any\b|:[[:space:]]*any\b|<any>|\b(it|test|describe|suite)\.(skip|only|todo)\b|\b(xit|xdescribe|xtest|fit|fdescribe)\(|prettier-ignore'
+SWIFT_PATTERNS='swiftlint:disable|swift-format-ignore|try!|as!|XCTSkip|\.disabled\(|@Test\(.*\.disabled'
+
+PROTECTED_REGEX='(^|/)(eslint\.config\.[cm]?[jt]s|\.eslintrc[^/]*|\.prettierrc[^/]*|prettier\.config\.[cm]?js|\.prettierignore|tsconfig[^/]*\.json|vitest[^/]*\.config\.[cm]?[jt]s|jest\.config\.[cm]?[jt]s|\.swiftlint\.yml|\.swift-format|scripts/verify|scripts/check-cheats|\.github/workflows/[^/]+)$'
+SHRINK_ONLY_REGEX='(^|/)(eslint-suppressions\.json|\.swiftlint\.baseline\.json)$'
+
+patterns_for() {
+  case "$1" in
+    *.ts | *.tsx | *.mts | *.cts | *.js | *.jsx | *.mjs | *.cjs) echo "$TS_PATTERNS" ;;
+    *.swift) echo "$SWIFT_PATTERNS" ;;
+  esac
+}
+
+changed_files() {
+  { git diff --name-only "$BASE"; git ls-files --others --exclude-standard; } | sort -u
+}
+
+count_matches() {
+  grep -Ec -- "$1" || true
+}
+
+# Count-based so that reformatting or moving an existing line never counts as a new cheat.
+scan_cheat_patterns() {
+  local file patterns before after line
+  while IFS= read -r file; do
+    [[ -f "$file" ]] || continue
+    patterns="$(patterns_for "$file")"
+    [[ -n "$patterns" ]] || continue
+    before="$(git show "$BASE:$file" 2>/dev/null | count_matches "$patterns")"
+    after="$(count_matches "$patterns" <"$file")"
+    if (( after > ${before:-0} )); then
+      failures+=("$file: $((after - ${before:-0})) supressão(ões)/atalho(s) novo(s):")
+      while IFS= read -r line; do
+        failures+=("    ${line:0:160}")
+      done < <(grep -En -- "$patterns" "$file" | head -n 5)
+    fi
+  done < <(changed_files)
+}
+
+existed_at_base() {
+  git cat-file -e "$BASE:$1" 2>/dev/null
+}
+
+count_suppressions() {
+  case "$1" in
+    *eslint-suppressions.json) jq '[.[] | .[] | .count] | add // 0' ;;
+    *.swiftlint.baseline.json) jq 'length' ;;
+  esac
+}
+
+# A change that only re-applies the repo's formatter is not a config change.
+is_formatting_only() {
+  local file="$1" prettier=node_modules/.bin/prettier
+  [[ -x "$prettier" && -f "$file" ]] || return 1
+  git show "$BASE:$file" | "$prettier" --stdin-filepath "$file" 2>/dev/null | cmp -s - "$file"
+}
+
+check_protected_files() {
+  local file before after
+  while IFS= read -r file; do
+    if [[ "$file" =~ $SHRINK_ONLY_REGEX ]] && existed_at_base "$file"; then
+      before="$(git show "$BASE:$file" | count_suppressions "$file")"
+      after="$( [[ -f "$file" ]] && count_suppressions "$file" <"$file" || echo 0)"
+      if (( after > before )); then
+        failures+=("$file: supressões aumentaram de $before para $after (só podem diminuir)")
+      fi
+      continue
+    fi
+    # New harness config (bootstrapping) is fine; changing existing config needs a human.
+    if [[ "$file" =~ $PROTECTED_REGEX ]] && existed_at_base "$file" && [[ -z "$ALLOW_CONFIG" ]] &&
+      ! is_formatting_only "$file"; then
+      failures+=("$file: config do harness alterada (exige aprovação humana)")
+    fi
+  done < <(changed_files)
+}
+
+warn_missing_tests() {
+  local changed
+  changed="$(changed_files)"
+  if grep -Eq '^(src|Sources|app|lib)/' <<<"$changed" &&
+    ! grep -Eq '(^|/)(tests?|Tests|__tests__)/|\.(test|spec)\.[cm]?[jt]sx?$|Tests\.swift$' <<<"$changed"; then
+    echo "AVISO: código de produção mudou sem nenhum teste alterado. Justifique no PR se for refactor puro."
+  fi
+}
+
+scan_cheat_patterns
+check_protected_files
+warn_missing_tests
+
+if (( ${#failures[@]} > 0 )); then
+  echo "check-cheats encontrou problemas:"
+  printf '  - %s\n' "${failures[@]}"
+  echo "Corrija o código em vez de silenciar a ferramenta. Se a regra estiver errada, pergunte ao João."
+  exit 1
+fi

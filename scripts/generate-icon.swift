@@ -8,27 +8,33 @@ let iconset = root.appendingPathComponent(".build/Financas.iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 
 func render(size: Int, fullBleed: Bool = false) throws -> Data {
-    let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size,
-                                  bitsPerSample: 8, samplesPerPixel: fullBleed ? 3 : 4, hasAlpha: !fullBleed,
-                                  isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 32)!
+    let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size,
+        bitsPerSample: 8, samplesPerPixel: fullBleed ? 3 : 4, hasAlpha: !fullBleed,
+        isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 32)!
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
     let context = NSGraphicsContext.current!.cgContext
     context.scaleBy(x: CGFloat(size) / 1024, y: CGFloat(size) / 1024)
-    let background = fullBleed
+    let background =
+        fullBleed
         ? NSBezierPath(rect: NSRect(x: 0, y: 0, width: 1024, height: 1024))
         : NSBezierPath(roundedRect: NSRect(x: 64, y: 64, width: 896, height: 896), xRadius: 220, yRadius: 220)
-    NSGradient(starting: NSColor(red: 0.06, green: 0.27, blue: 0.20, alpha: 1),
-               ending: NSColor(red: 0.02, green: 0.12, blue: 0.09, alpha: 1))!.draw(in: background, angle: -70)
+    NSGradient(
+        starting: NSColor(red: 0.06, green: 0.27, blue: 0.20, alpha: 1),
+        ending: NSColor(red: 0.02, green: 0.12, blue: 0.09, alpha: 1))!.draw(in: background, angle: -70)
 
     let mint = NSColor(red: 0.76, green: 0.91, blue: 0.64, alpha: 1)
     NSGraphicsContext.saveGraphicsState()
     background.addClip()
     // A soft light behind the mark and faint ledger rules, as in the splash.
     NSGradient(colors: [mint.withAlphaComponent(0.16), mint.withAlphaComponent(0)])!
-        .draw(fromCenter: NSPoint(x: 530, y: 540), radius: 0, toCenter: NSPoint(x: 530, y: 540), radius: 380, options: [])
+        .draw(
+            fromCenter: NSPoint(x: 530, y: 540), radius: 0, toCenter: NSPoint(x: 530, y: 540), radius: 380, options: [])
     NSColor.white.withAlphaComponent(0.045).setFill()
-    for y in stride(from: 212, through: 812, by: 75) { NSBezierPath(rect: NSRect(x: 0, y: y, width: 1024, height: 2)).fill() }
+    for y in stride(from: 212, through: 812, by: 75) {
+        NSBezierPath(rect: NSRect(x: 0, y: y, width: 1024, height: 2)).fill()
+    }
     NSGraphicsContext.restoreGraphicsState()
 
     // The mark, from MarkGeometry (Sources/Financas/BrandViews.swift): a 100-unit artboard, y down.
@@ -69,7 +75,8 @@ for size in [16, 32, 128, 256, 512] {
     try render(size: size * 2).write(to: iconset.appendingPathComponent("icon_\(size)x\(size)@2x.png"))
 }
 try render(size: 1024).write(to: root.appendingPathComponent("Resources/AppIcon.png"))
-try render(size: 1024, fullBleed: true).write(to: root.appendingPathComponent("iOS/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png"))
+try render(size: 1024, fullBleed: true).write(
+    to: root.appendingPathComponent("iOS/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png"))
 let process = Process()
 process.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 process.arguments = ["-c", "icns", iconset.path, "-o", root.appendingPathComponent("Resources/AppIcon.icns").path]

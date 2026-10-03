@@ -9,19 +9,20 @@ enum Concierge {
         let name = stored.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { return name }
         #if os(macOS)
-        return NSFullUserName().split(separator: " ").first.map(String.init)
+            return NSFullUserName().split(separator: " ").first.map(String.init)
         #else
-        return nil
+            return nil
         #endif
     }
 
     static func greeting(name: String?, at date: Date = .now, calendar: Calendar = .current) -> String {
         let hour = calendar.component(.hour, from: date)
-        let salutation = switch hour {
-        case 5..<12: "Bom dia"
-        case 12..<18: "Boa tarde"
-        default: "Boa noite"
-        }
+        let salutation =
+            switch hour {
+            case 5..<12: "Bom dia"
+            case 12..<18: "Boa tarde"
+            default: "Boa noite"
+            }
         guard let name, !name.isEmpty else { return "\(salutation)." }
         return "\(salutation), \(name)."
     }
@@ -95,11 +96,11 @@ struct NoticeToast: View {
 
     // On the iPhone the tab bar owns the bottom; on the Mac the toolbar owns the top.
     #if os(iOS)
-    static let alignment = Alignment.top
-    private static let edge = Edge.top
+        static let alignment = Alignment.top
+        private static let edge = Edge.top
     #else
-    static let alignment = Alignment.bottom
-    private static let edge = Edge.bottom
+        static let alignment = Alignment.bottom
+        private static let edge = Edge.bottom
     #endif
 }
 

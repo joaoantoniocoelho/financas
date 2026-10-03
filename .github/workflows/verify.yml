@@ -1,0 +1,29 @@
+name: verify
+
+on:
+  pull_request:
+    # labeled/unlabeled: adding the harness-config label re-runs the checks with it.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    env:
+      HARNESS_BASE: origin/${{ github.base_ref || 'main' }}
+      # A human adds the "harness-config" label to approve changes to harness config files.
+      HARNESS_ALLOW_CONFIG_CHANGE: ${{ contains(github.event.pull_request.labels.*.name, 'harness-config') && '1' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: brew install swiftlint xcbeautify
+      - run: scripts/verify
+      # The iOS app compiles the same Sources/ as the SwiftPM package; make sure it still builds.
+      - name: iOS build
+        run: |
+          set -o pipefail
+          xcodebuild build -project iOS/Financas.xcodeproj -scheme Financas \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO | xcbeautify

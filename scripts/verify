@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Single quality gate for this repo, run by Claude Code's Stop hook and by CI.
+# Fast local checks only; the full simulator suite runs in CI.
+# Managed by claude-harness — changing it requires human approval (check-cheats).
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+# For Xcode app targets: set the scheme to build (empty = SwiftPM package).
+XCODE_SCHEME=""
+
+step() {
+  local name="$1" output
+  shift
+  if output="$("$@" 2>&1)"; then
+    echo "✓ $name"
+    grep '^AVISO' <<<"$output" || true
+  else
+    echo "✗ $name"
+    echo "$output" | tail -n 80
+    exit 1
+  fi
+}
+
+swift_files() {
+  git ls-files -z --cached --others --exclude-standard -- '*.swift'
+}
+
+format_lint() {
+  swift_files | xargs -0 swift format lint --strict --configuration .swift-format
+}
+
+swiftlint_lint() {
+  local args=(lint --strict --quiet)
+  [[ -f .swiftlint.baseline.json ]] && args+=(--baseline .swiftlint.baseline.json)
+  swiftlint "${args[@]}"
+}
+
+build_for_testing() {
+  xcodebuild build-for-testing -scheme "$XCODE_SCHEME" \
+    -destination 'generic/platform=iOS Simulator' -quiet
+}
+
+step format format_lint
+step lint swiftlint_lint
+step cheats scripts/check-cheats
+if [[ -n "$XCODE_SCHEME" ]]; then
+  step build build_for_testing
+else
+  step build swift build
+  step tests swift test
+fi

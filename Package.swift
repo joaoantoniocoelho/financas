@@ -8,6 +8,6 @@ let package = Package(
     targets: [
         .systemLibrary(name: "CSQLite"),
         .executableTarget(name: "Financas", dependencies: ["CSQLite"]),
-        .testTarget(name: "FinancasTests", dependencies: ["Financas"])
+        .testTarget(name: "FinancasTests", dependencies: ["Financas"]),
     ]
 )

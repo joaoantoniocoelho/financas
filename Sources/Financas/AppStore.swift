@@ -23,8 +23,9 @@ final class AppStore: ObservableObject {
     }
 
     convenience init() {
-        do { try self.init(database: Database()) }
-        catch { fatalError("Falha ao iniciar banco: \(error.localizedDescription)") }
+        do { try self.init(database: Database()) } catch {
+            fatalError("Falha ao iniciar banco: \(error.localizedDescription)")
+        }
     }
 
     var selectedMonth: BudgetMonth? { months.first { $0.id == selectedMonthID } }
@@ -36,59 +37,70 @@ final class AppStore: ObservableObject {
         t.fixedReceived = incomes.filter { $0.isFixed && $0.status == .received }.reduce(0) { $0 + $1.amount }
         t.extrasReceived = incomes.filter { !$0.isFixed && $0.status == .received }.reduce(0) { $0 + $1.amount }
         t.recurringExpected = expenses.filter(\.isRecurring).reduce(0) { $0 + $1.amount }
-        t.recurringPaid = expenses.filter { $0.isRecurring && [.paid,.prepaid].contains($0.status) }.reduce(0) { $0 + $1.amount }
+        t.recurringPaid = expenses.filter { $0.isRecurring && [.paid, .prepaid].contains($0.status) }.reduce(0) {
+            $0 + $1.amount
+        }
         let invoiceTotal = expenses.filter { $0.status == .invoice }.reduce(0) { $0 + $1.amount }
         let prepaidInvoice = (try? database.invoicePrepaidAmount(monthID: selectedMonthID ?? 0)) ?? 0
         t.invoice = max(0, invoiceTotal - prepaidInvoice)
         t.pending = expenses.filter { $0.status == .pending }.reduce(0) { $0 + $1.amount }
         t.variable = expenses.filter { !$0.isRecurring }.reduce(0) { $0 + $1.amount }
-        t.paidVariable = expenses.filter { !$0.isRecurring && [.paid,.prepaid].contains($0.status) }.reduce(0) { $0 + $1.amount }
-        t.investmentsPlanned = investments.isEmpty ? monthlyInvestmentGoal : investments.reduce(0) { $0 + $1.plannedAmount }
-        let investmentFundIDs=Set(investmentFunds.filter(\.countsAsInvestment).map(\.id))
-        t.investmentsActual = investmentMovements.filter { $0.kind == .contribution && investmentFundIDs.contains($0.fundID) }.reduce(0) { $0 + $1.amount }
+        t.paidVariable = expenses.filter { !$0.isRecurring && [.paid, .prepaid].contains($0.status) }.reduce(0) {
+            $0 + $1.amount
+        }
+        t.investmentsPlanned =
+            investments.isEmpty ? monthlyInvestmentGoal : investments.reduce(0) { $0 + $1.plannedAmount }
+        let investmentFundIDs = Set(investmentFunds.filter(\.countsAsInvestment).map(\.id))
+        t.investmentsActual = investmentMovements.filter {
+            $0.kind == .contribution && investmentFundIDs.contains($0.fundID)
+        }.reduce(0) { $0 + $1.amount }
         return t
     }
 
     /// Funds held in reais: the only ones that add up into totals and can receive contributions or withdrawals.
-    var realFunds:[InvestmentFund] { investmentFunds.filter { $0.foreignCurrency == nil } }
-    var totalInvested:Double { realFunds.reduce(0) { $0 + $1.currentBalance } }
+    var realFunds: [InvestmentFund] { investmentFunds.filter { $0.foreignCurrency == nil } }
+    var totalInvested: Double { realFunds.reduce(0) { $0 + $1.currentBalance } }
     /// Foreign-currency funds grouped by currency, each total kept in its own currency.
-    var foreignHoldings:[(currency:ForeignCurrency,funds:[InvestmentFund],total:Double)] {
+    var foreignHoldings: [(currency: ForeignCurrency, funds: [InvestmentFund], total: Double)] {
         ForeignCurrency.allCases.compactMap { currency in
-            let funds=investmentFunds.filter { $0.foreignCurrency == currency }
-            return funds.isEmpty ? nil : (currency,funds,funds.reduce(0) { $0 + $1.currentBalance })
+            let funds = investmentFunds.filter { $0.foreignCurrency == currency }
+            return funds.isEmpty ? nil : (currency, funds, funds.reduce(0) { $0 + $1.currentBalance })
         }
     }
-    var emergencyReserveFunds:[InvestmentFund] { realFunds.filter(\.isEmergencyReserve) }
-    var emergencyReserveBalance:Double { emergencyReserveFunds.reduce(0) { $0 + $1.currentBalance } }
-    var monthlyFixedExpenseBaseline:Double { recurring.filter(\.active).reduce(0) { $0 + $1.amount } }
-    var emergencyReserveMonths:Double {
+    var emergencyReserveFunds: [InvestmentFund] { realFunds.filter(\.isEmergencyReserve) }
+    var emergencyReserveBalance: Double { emergencyReserveFunds.reduce(0) { $0 + $1.currentBalance } }
+    var monthlyFixedExpenseBaseline: Double { recurring.filter(\.active).reduce(0) { $0 + $1.amount } }
+    var emergencyReserveMonths: Double {
         guard monthlyFixedExpenseBaseline > 0 else { return 0 }
         return emergencyReserveBalance / monthlyFixedExpenseBaseline
     }
 
-    func nextSalary(referenceDate:Date = .now) -> NextSalary? {
-        guard let month=selectedMonth else { return nil }
-        let calendar=Calendar(identifier:.gregorian)
-        let reference=calendar.startOfDay(for:referenceDate)
-        let candidates=incomes.compactMap { income -> (Income,Date)? in
-            guard income.isFixed,income.status == .pending else { return nil }
-            if let date=income.date { return (income,calendar.startOfDay(for:date)) }
-            guard let day=income.expectedDay,
-                  let start=calendar.date(from:DateComponents(year:month.year,month:month.month,day:1)),
-                  let range=calendar.range(of:.day,in:.month,for:start),
-                  let date=calendar.date(from:DateComponents(year:month.year,month:month.month,day:min(max(day,1),range.count))) else { return nil }
-            return (income,date)
+    func nextSalary(referenceDate: Date = .now) -> NextSalary? {
+        guard let month = selectedMonth else { return nil }
+        let calendar = Calendar(identifier: .gregorian)
+        let reference = calendar.startOfDay(for: referenceDate)
+        let candidates = incomes.compactMap { income -> (Income, Date)? in
+            guard income.isFixed, income.status == .pending else { return nil }
+            if let date = income.date { return (income, calendar.startOfDay(for: date)) }
+            guard let day = income.expectedDay,
+                let start = calendar.date(from: DateComponents(year: month.year, month: month.month, day: 1)),
+                let range = calendar.range(of: .day, in: .month, for: start),
+                let date = calendar.date(
+                    from: DateComponents(year: month.year, month: month.month, day: min(max(day, 1), range.count)))
+            else { return nil }
+            return (income, date)
         }.filter { $0.1 >= reference }.sorted { $0.1 < $1.1 }
-        guard let next=candidates.first else { return nil }
-        let days=calendar.dateComponents([.day],from:reference,to:next.1).day ?? 0
-        return NextSalary(date:next.1,amount:next.0.amount,description:next.0.description,days:days)
+        guard let next = candidates.first else { return nil }
+        let days = calendar.dateComponents([.day], from: reference, to: next.1).day ?? 0
+        return NextSalary(date: next.1, amount: next.0.amount, description: next.0.description, days: days)
     }
 
     func reloadAll(selectLatest: Bool = false) {
         perform {
             months = try database.months()
-            if selectLatest || !months.contains(where: { $0.id == selectedMonthID }) { selectedMonthID = months.last?.id }
+            if selectLatest || !months.contains(where: { $0.id == selectedMonthID }) {
+                selectedMonthID = months.last?.id
+            }
             recurring = try database.recurringExpenses()
             investmentFunds = try database.investmentFunds()
             monthlyInvestmentGoal = try database.monthlyInvestmentGoal()
@@ -97,11 +109,13 @@ final class AppStore: ObservableObject {
     }
 
     func reloadMonth() throws {
-        guard let id = selectedMonthID else { incomes=[]; expenses=[]; investments=[]; investmentMovements=[]; return }
+        guard let id = selectedMonthID else {
+            incomes = []; expenses = []; investments = []; investmentMovements = []; return
+        }
         incomes = try database.incomes(monthID: id)
         expenses = try database.expenses(monthID: id)
         investments = try database.investments(monthID: id)
-        investmentMovements = try database.investmentMovements(monthID:id)
+        investmentMovements = try database.investmentMovements(monthID: id)
         investmentFunds = try database.investmentFunds()
     }
 
@@ -114,69 +128,137 @@ final class AppStore: ObservableObject {
 
     func createNextMonth() {
         perform {
-            let base = months.last ?? BudgetMonth(id: 0, year: Calendar.current.component(.year, from: .now), month: Calendar.current.component(.month, from: .now), initialBalance: 0, currentBalance: 0, balanceDate: nil)
+            let base =
+                months.last
+                ?? BudgetMonth(
+                    id: 0, year: Calendar.current.component(.year, from: .now),
+                    month: Calendar.current.component(.month, from: .now), initialBalance: 0, currentBalance: 0,
+                    balanceDate: nil)
             let next = base.month == 12 ? (base.year + 1, 1) : (base.year, base.month + 1)
             selectedMonthID = try database.createMonth(year: next.0, month: next.1)
             months = try database.months(); try reloadMonth()
-            if let month = selectedMonth { announce("\(month.title) pronto, já com suas contas fixas.", systemImage: "calendar.badge.checkmark") }
+            if let month = selectedMonth {
+                announce("\(month.title) pronto, já com suas contas fixas.", systemImage: "calendar.badge.checkmark")
+            }
         }
     }
 
     func saveMonth(_ value: BudgetMonth) {
-        if perform({ try database.updateMonth(value); reloadAll() }) { announce("Saldos atualizados.") }
+        if perform({
+            try database.updateMonth(value); reloadAll()
+        }) {
+            announce("Saldos atualizados.")
+        }
     }
     func deleteCurrentMonth() {
         guard let id = selectedMonthID else { return }
-        perform { try database.deleteMonth(id); reloadAll(selectLatest: true) }
+        perform {
+            try database.deleteMonth(id); reloadAll(selectLatest: true)
+        }
     }
     func save(_ value: Income) {
-        guard perform({ try database.saveIncome(value); try refreshCurrentMonth() }) else { return }
+        guard
+            perform({
+                try database.saveIncome(value); try refreshCurrentMonth()
+            })
+        else { return }
         if value.id == 0 {
-            announce("Anotado: \(AppFormat.money(value.amount)) de \(value.description).", hidden: "Entrada anotada: \(value.description).")
-        } else { announce("Alterações salvas.") }
+            announce(
+                "Anotado: \(AppFormat.money(value.amount)) de \(value.description).",
+                hidden: "Entrada anotada: \(value.description).")
+        } else {
+            announce("Alterações salvas.")
+        }
     }
-    func delete(_ value: Income) { perform { try database.deleteIncome(value.id); try refreshCurrentMonth() } }
+    func delete(_ value: Income) {
+        perform {
+            try database.deleteIncome(value.id); try refreshCurrentMonth()
+        }
+    }
     func save(_ value: Expense) {
-        guard perform({ try database.saveExpense(value); try refreshCurrentMonth() }) else { return }
+        guard
+            perform({
+                try database.saveExpense(value); try refreshCurrentMonth()
+            })
+        else { return }
         if value.id == 0 {
-            announce("Anotado: \(AppFormat.money(value.amount)) em \(value.category).", hidden: "Anotado em \(value.category).")
-        } else { announce("Alterações salvas.") }
+            announce(
+                "Anotado: \(AppFormat.money(value.amount)) em \(value.category).",
+                hidden: "Anotado em \(value.category).")
+        } else {
+            announce("Alterações salvas.")
+        }
     }
     func saveExpenseBatch(_ values: [Expense]) throws {
         try database.saveExpenseBatch(values)
         perform { try refreshCurrentMonth() }
     }
-    func delete(_ value: Expense) { perform { try database.deleteExpense(value.id); try refreshCurrentMonth() } }
-    func save(_ value: Investment) { perform { try database.saveInvestment(value); try refreshCurrentMonth() } }
-    func delete(_ value: Investment) { perform { try database.deleteInvestment(value.id); try refreshCurrentMonth() } }
-    func save(_ value:InvestmentMovement) {
-        guard perform({ try database.saveInvestmentMovement(value); try refreshCurrentMonth() }) else { return }
+    func delete(_ value: Expense) {
+        perform {
+            try database.deleteExpense(value.id); try refreshCurrentMonth()
+        }
+    }
+    func save(_ value: Investment) {
+        perform {
+            try database.saveInvestment(value); try refreshCurrentMonth()
+        }
+    }
+    func delete(_ value: Investment) {
+        perform {
+            try database.deleteInvestment(value.id); try refreshCurrentMonth()
+        }
+    }
+    func save(_ value: InvestmentMovement) {
+        guard
+            perform({
+                try database.saveInvestmentMovement(value); try refreshCurrentMonth()
+            })
+        else { return }
         guard value.id == 0 else { announce("Alterações salvas."); return }
         let fund = investmentFunds.first { $0.id == value.fundID }?.name ?? "fundo"
         let amount = AppFormat.money(value.amount)
         switch value.kind {
-        case .contribution: announce("Aporte de \(amount) em \(fund). Seu dinheiro trabalhando.", hidden: "Aporte registrado em \(fund).", systemImage: "arrow.up.circle.fill")
-        case .withdrawal: announce("Resgate de \(amount) de \(fund) registrado.", hidden: "Resgate registrado de \(fund).", systemImage: "arrow.down.circle.fill")
+        case .contribution:
+            announce(
+                "Aporte de \(amount) em \(fund). Seu dinheiro trabalhando.", hidden: "Aporte registrado em \(fund).",
+                systemImage: "arrow.up.circle.fill")
+        case .withdrawal:
+            announce(
+                "Resgate de \(amount) de \(fund) registrado.", hidden: "Resgate registrado de \(fund).",
+                systemImage: "arrow.down.circle.fill")
         }
     }
-    func delete(_ value:InvestmentMovement) { perform { try database.deleteInvestmentMovement(value.id); try refreshCurrentMonth() } }
+    func delete(_ value: InvestmentMovement) {
+        perform {
+            try database.deleteInvestmentMovement(value.id); try refreshCurrentMonth()
+        }
+    }
     func saveMonthlyInvestmentGoal(_ value: Double) {
-        if perform({ try database.setMonthlyInvestmentGoal(value); monthlyInvestmentGoal = value }) { announce("Meta mensal atualizada.", systemImage: "target") }
+        if perform({
+            try database.setMonthlyInvestmentGoal(value); monthlyInvestmentGoal = value
+        }) {
+            announce("Meta mensal atualizada.", systemImage: "target")
+        }
     }
     /// Throws so the editor sheet can show the problem (e.g. a duplicate name) without closing.
-    func save(_ value:InvestmentFund) throws {
+    func save(_ value: InvestmentFund) throws {
         try database.saveInvestmentFund(value)
         investmentFunds = try database.investmentFunds()
         let name = value.name.trimmingCharacters(in: .whitespacesAndNewlines)
         announce(value.id == 0 ? "\(name) agora faz parte dos seus investimentos." : "Alterações salvas.")
     }
-    func delete(_ value:InvestmentFund) { perform { try database.deleteInvestmentFund(value.id); investmentFunds = try database.investmentFunds() } }
+    func delete(_ value: InvestmentFund) {
+        perform {
+            try database.deleteInvestmentFund(value.id); investmentFunds = try database.investmentFunds()
+        }
+    }
     func save(_ value: RecurringExpense, addToCurrentMonth: Bool = false) {
         let saved = perform {
             let recurringID = try database.saveRecurring(value)
             if addToCurrentMonth, let monthID = selectedMonthID {
                 try database.instantiateRecurring(monthID: monthID)
-                if var expense = try database.expenses(monthID: monthID).first(where: { $0.recurringID == recurringID }) {
+                if var expense = try database.expenses(monthID: monthID).first(where: { $0.recurringID == recurringID })
+                {
                     expense.date = .now
                     expense.status = expense.paymentMethod == .card ? .pending : .paid
                     try database.saveExpense(expense)
@@ -185,18 +267,37 @@ final class AppStore: ObservableObject {
             recurring = try database.recurringExpenses()
             try refreshCurrentMonth()
         }
-        if saved { announce(value.id == 0 ? "\(value.description) entrou nas suas contas de todo mês." : "Alterações salvas.") }
+        if saved {
+            announce(value.id == 0 ? "\(value.description) entrou nas suas contas de todo mês." : "Alterações salvas.")
+        }
     }
-    func delete(_ value: RecurringExpense) { perform { try database.deleteRecurring(value.id); recurring = try database.recurringExpenses() } }
-    func syncRecurring() { guard let id=selectedMonthID else{return}; perform { try database.instantiateRecurring(monthID:id); try reloadMonth() } }
+    func delete(_ value: RecurringExpense) {
+        perform {
+            try database.deleteRecurring(value.id); recurring = try database.recurringExpenses()
+        }
+    }
+    func syncRecurring() {
+        guard let id = selectedMonthID else { return }
+        perform {
+            try database.instantiateRecurring(monthID: id); try reloadMonth()
+        }
+    }
     func payInvoice() {
-        guard let id=selectedMonthID else{return}
-        if perform({ try database.payInvoice(monthID:id); try refreshCurrentMonth() }) { announce("Fatura paga. Cartão em dia.", systemImage: "creditcard.fill") }
+        guard let id = selectedMonthID else { return }
+        if perform({
+            try database.payInvoice(monthID: id); try refreshCurrentMonth()
+        }) {
+            announce("Fatura paga. Cartão em dia.", systemImage: "creditcard.fill")
+        }
     }
     func prepayInvoice(amount: Double) {
-        guard let id=selectedMonthID else{return}
-        if perform({ try database.prepayInvoice(monthID:id, amount:amount); try refreshCurrentMonth() }) {
-            announce("Adiantei \(AppFormat.money(amount)) da fatura.", hidden: "Adiantamento da fatura registrado.", systemImage: "creditcard.fill")
+        guard let id = selectedMonthID else { return }
+        if perform({
+            try database.prepayInvoice(monthID: id, amount: amount); try refreshCurrentMonth()
+        }) {
+            announce(
+                "Adiantei \(AppFormat.money(amount)) da fatura.", hidden: "Adiantamento da fatura registrado.",
+                systemImage: "creditcard.fill")
         }
     }
 
@@ -213,7 +314,11 @@ final class AppStore: ObservableObject {
         }
     }
     func importBackup(from url: URL) {
-        if perform({ try database.replaceDatabase(with: url); reloadAll(selectLatest: true) }) { announce("Backup importado. Tudo no lugar.", systemImage: "externaldrive.fill.badge.checkmark") }
+        if perform({
+            try database.replaceDatabase(with: url); reloadAll(selectLatest: true)
+        }) {
+            announce("Backup importado. Tudo no lugar.", systemImage: "externaldrive.fill.badge.checkmark")
+        }
     }
 
     /// Shows a short confirmation that goes away by itself.

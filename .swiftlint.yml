@@ -1,0 +1,46 @@
+# Managed by claude-harness. Changing this file requires human approval (check-cheats).
+excluded:
+  - .build
+  - DerivedData
+  - "**/Generated"
+
+# Formatting is owned by swift-format; disable rules that conflict with it.
+disabled_rules:
+  - trailing_comma
+  - opening_brace
+  - vertical_parameter_alignment
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - fatal_error_message
+  - discouraged_optional_boolean
+  - redundant_nil_coalescing
+  - unneeded_parentheses_in_closure_argument
+
+force_cast: error
+force_try: error
+force_unwrapping: error
+
+line_length:
+  warning: 120
+  ignores_urls: true
+  ignores_comments: true
+function_body_length:
+  warning: 50
+file_length:
+  warning: 400
+  ignore_comment_only_lines: true
+type_body_length:
+  warning: 300
+cyclomatic_complexity:
+  warning: 10
+function_parameter_count:
+  warning: 5
+nesting:
+  type_level: 2
+identifier_name:
+  excluded: [id, x, y, i]

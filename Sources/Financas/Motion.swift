@@ -34,7 +34,9 @@ private struct Entrance: ViewModifier {
             .scaleEffect(visible || reduceMotion ? 1 : 0.98, anchor: .top)
             .onAppear {
                 guard !visible else { return }
-                withAnimation(.spring(response: 0.55, dampingFraction: 0.82).delay(reduceMotion ? 0 : Double(order) * 0.06)) {
+                withAnimation(
+                    .spring(response: 0.55, dampingFraction: 0.82).delay(reduceMotion ? 0 : Double(order) * 0.06)
+                ) {
                     visible = true
                 }
             }
@@ -54,13 +56,17 @@ struct HeroBackground: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         ZStack {
-            LinearGradient(colors: [AppBrand.forest, AppBrand.evergreen], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(
+                colors: [AppBrand.forest, AppBrand.evergreen], startPoint: .topLeading, endPoint: .bottomTrailing)
             GeometryReader { geometry in
                 let size = max(geometry.size.width, geometry.size.height)
-                RadialGradient(colors: [AppBrand.mint.opacity(0.28), .clear], center: .center, startRadius: 0, endRadius: size * 0.55)
-                    .frame(width: size * 1.1, height: size * 1.1)
-                    .position(x: geometry.size.width * (drift ? 0.85 : 0.1), y: geometry.size.height * (drift ? 0.9 : -0.1))
-                    .blendMode(.plusLighter)
+                RadialGradient(
+                    colors: [AppBrand.mint.opacity(0.28), .clear], center: .center, startRadius: 0,
+                    endRadius: size * 0.55
+                )
+                .frame(width: size * 1.1, height: size * 1.1)
+                .position(x: geometry.size.width * (drift ? 0.85 : 0.1), y: geometry.size.height * (drift ? 0.9 : -0.1))
+                .blendMode(.plusLighter)
             }
             // A faint echo of the brand ring.
             Circle()

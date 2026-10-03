@@ -80,7 +80,8 @@ private struct ShortcutsView: View {
 private struct WidgetBackground: View {
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Brand.greenTop, Brand.greenBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(
+                colors: [Brand.greenTop, Brand.greenBottom], startPoint: .topLeading, endPoint: .bottomTrailing)
             GeometryReader { geometry in
                 // Faint ledger rules and a soft light, as in the splash and the icon.
                 VStack(spacing: 0) {
@@ -90,9 +91,12 @@ private struct WidgetBackground: View {
                     }
                     Spacer(minLength: 0)
                 }
-                RadialGradient(colors: [Brand.mint.opacity(0.16), .clear], center: .center, startRadius: 0, endRadius: geometry.size.height * 0.8)
-                    .frame(width: geometry.size.height * 1.6, height: geometry.size.height * 1.6)
-                    .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
+                RadialGradient(
+                    colors: [Brand.mint.opacity(0.16), .clear], center: .center, startRadius: 0,
+                    endRadius: geometry.size.height * 0.8
+                )
+                .frame(width: geometry.size.height * 1.6, height: geometry.size.height * 1.6)
+                .position(x: geometry.size.width * 0.86, y: geometry.size.height * 0.2)
                 // The app's mark, large and faint, bleeding off the top right corner.
                 BrandRing(lineWidth: 4)
                     .frame(width: geometry.size.height * 1.15, height: geometry.size.height * 1.15)
@@ -107,7 +111,9 @@ private struct WidgetBackground: View {
 /// Same numbers as MarkGeometry in the app (a 100-unit artboard, y down).
 private struct BrandRing: View {
     var lineWidth: CGFloat
-    private static let chart: [CGPoint] = [CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26)]
+    private static let chart: [CGPoint] = [
+        CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26),
+    ]
 
     var body: some View {
         GeometryReader { geometry in
@@ -119,8 +125,12 @@ private struct BrandRing: View {
             let tip = point(Self.chart[Self.chart.count - 1])
             let dot = max(4.2 * scale, lineWidth * 1.2)
             ZStack {
-                Path { $0.addArc(center: CGPoint(x: side / 2, y: side / 2), radius: side / 2 - lineWidth / 2, startAngle: .degrees(0), endAngle: .degrees(270), clockwise: false) }
-                    .stroke(Brand.mint, style: style)
+                Path {
+                    $0.addArc(
+                        center: CGPoint(x: side / 2, y: side / 2), radius: side / 2 - lineWidth / 2,
+                        startAngle: .degrees(0), endAngle: .degrees(270), clockwise: false)
+                }
+                .stroke(Brand.mint, style: style)
                 Path { $0.addLines(Self.chart.map(point)) }
                     .stroke(Brand.mint, style: style)
                 Circle().fill(Brand.mint)
