@@ -1,7 +1,8 @@
-#if os(macOS)
-import AppKit
-#endif
 import SwiftUI
+
+#if os(macOS)
+    import AppKit
+#endif
 
 private struct CompactMenuDismissKey: EnvironmentKey { static let defaultValue: () -> Void = {} }
 extension EnvironmentValues {
@@ -15,39 +16,53 @@ struct CompactActionMenu<Content: View>: View {
     @State private var presented = false
     @ViewBuilder let content: () -> Content
     #if os(iOS)
-    var body: some View {
-        Menu { content() } label: {
-            Image(systemName: "ellipsis").font(.system(size: 15, weight: .bold)).frame(width: 36, height: 36).contentShape(Rectangle())
+        var body: some View {
+            Menu {
+                content()
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 15, weight: .bold)).frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless).accessibilityLabel("Mais ações")
         }
-        .buttonStyle(.borderless).accessibilityLabel("Mais ações")
-    }
     #else
-    var body: some View {
-        Button { presented.toggle() } label: {
-            Image(systemName: "ellipsis").font(.system(size: 13, weight: .bold)).frame(width: 28, height: 28)
+        var body: some View {
+            Button {
+                presented.toggle()
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 13, weight: .bold)).frame(width: 28, height: 28)
+            }
+            .buttonStyle(.borderless).pointerCursor().help("Mais ações")
+            .popover(isPresented: $presented, arrowEdge: .trailing) {
+                VStack(alignment: .leading, spacing: 2) { content() }
+                    .padding(6).frame(minWidth: 190, alignment: .leading)
+                    .environment(\.compactMenuDismiss, { presented = false })
+            }
         }
-        .buttonStyle(.borderless).pointerCursor().help("Mais ações")
-        .popover(isPresented: $presented, arrowEdge: .trailing) {
-            VStack(alignment: .leading, spacing: 2) { content() }
-                .padding(6).frame(minWidth: 190, alignment: .leading)
-                .environment(\.compactMenuDismiss, { presented = false })
-        }
-    }
     #endif
 }
 
 struct CompactMenuItem: View {
     @Environment(\.compactMenuDismiss) private var dismiss
     let title: String; let role: ButtonRole?; let action: () -> Void
-    init(_ title: String, role: ButtonRole? = nil, action: @escaping () -> Void) { self.title = title; self.role = role; self.action = action }
+    init(_ title: String, role: ButtonRole? = nil, action: @escaping () -> Void) {
+        self.title = title; self.role = role; self.action = action
+    }
     var body: some View {
         #if os(iOS)
-        Button(title, role: role, action: action)
+            Button(title, role: role, action: action)
         #else
-        Group {
-            if let role { Button(title, role: role) { dismiss(); action() } }
-            else { Button(title) { dismiss(); action() } }
-        }.buttonStyle(.borderless).pointerCursor().frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                if let role {
+                    Button(title, role: role) {
+                        dismiss(); action()
+                    }
+                } else {
+                    Button(title) {
+                        dismiss(); action()
+                    }
+                }
+            }.buttonStyle(.borderless).pointerCursor().frame(maxWidth: .infinity, alignment: .leading)
         #endif
     }
 }
@@ -58,7 +73,9 @@ struct CompactMenuItem: View {
 enum MarkGeometry {
     static let center = CGPoint(x: 50, y: 50)
     static let radius: CGFloat = 34
-    static let chart: [CGPoint] = [CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26)]
+    static let chart: [CGPoint] = [
+        CGPoint(x: 27, y: 64), CGPoint(x: 41, y: 50), CGPoint(x: 51, y: 58), CGPoint(x: 74, y: 26),
+    ]
     static let dotRadius: CGFloat = 4.2
     static let haloRadius: CGFloat = 8.5
     static let stroke: CGFloat = 2.6
@@ -70,7 +87,11 @@ enum MarkGeometry {
 
     /// From 3 o'clock clockwise round to 12 o'clock.
     static func ring(in rect: CGRect) -> Path {
-        Path { $0.addArc(center: point(center, in: rect), radius: radius / 100 * rect.width, startAngle: .degrees(0), endAngle: .degrees(270), clockwise: false) }
+        Path {
+            $0.addArc(
+                center: point(center, in: rect), radius: radius / 100 * rect.width, startAngle: .degrees(0),
+                endAngle: .degrees(270), clockwise: false)
+        }
     }
 
     static func chartPath(in rect: CGRect) -> Path {
@@ -84,30 +105,30 @@ enum MarkGeometry {
 }
 
 #if os(macOS)
-extension AppBrand {
-    /// Template artwork lets macOS choose the correct color for the menu bar.
-    static let menuBarIcon: NSImage = {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
-            // The ring spans 15 pt; strokes stay at a legible 1.3 pt.
-            let rect = CGRect(x: 9 - 7.5 / 0.68, y: 9 - 7.5 / 0.68, width: 15 / 0.68, height: 15 / 0.68)
-            let context = NSGraphicsContext.current!.cgContext
-            context.setStrokeColor(NSColor.black.cgColor)
-            context.setFillColor(NSColor.black.cgColor)
-            context.setLineWidth(1.3)
-            context.setLineCap(.round)
-            context.setLineJoin(.round)
-            context.addPath(MarkGeometry.ring(in: rect).cgPath)
-            context.addPath(MarkGeometry.chartPath(in: rect).cgPath)
-            context.strokePath()
-            context.addPath(MarkGeometry.dot(in: rect, radius: 7).cgPath)
-            context.fillPath()
-            return true
-        }
-        image.isTemplate = true
-        image.accessibilityDescription = "Finanças"
-        return image
-    }()
-}
+    extension AppBrand {
+        /// Template artwork lets macOS choose the correct color for the menu bar.
+        static let menuBarIcon: NSImage = {
+            let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+                // The ring spans 15 pt; strokes stay at a legible 1.3 pt.
+                let rect = CGRect(x: 9 - 7.5 / 0.68, y: 9 - 7.5 / 0.68, width: 15 / 0.68, height: 15 / 0.68)
+                let context = NSGraphicsContext.current!.cgContext
+                context.setStrokeColor(NSColor.black.cgColor)
+                context.setFillColor(NSColor.black.cgColor)
+                context.setLineWidth(1.3)
+                context.setLineCap(.round)
+                context.setLineJoin(.round)
+                context.addPath(MarkGeometry.ring(in: rect).cgPath)
+                context.addPath(MarkGeometry.chartPath(in: rect).cgPath)
+                context.strokePath()
+                context.addPath(MarkGeometry.dot(in: rect, radius: 7).cgPath)
+                context.fillPath()
+                return true
+            }
+            image.isTemplate = true
+            image.accessibilityDescription = "Finanças"
+            return image
+        }()
+    }
 #endif
 
 /// The mark on its deep green tile.
@@ -146,8 +167,9 @@ struct BrandBackground: View {
         ZStack {
             AppBrand.canvas
             if !reduceTransparency {
-                LinearGradient(colors: [AppBrand.accent.opacity(0.12), .clear, AppBrand.mint.opacity(0.14)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                LinearGradient(
+                    colors: [AppBrand.accent.opacity(0.12), .clear, AppBrand.mint.opacity(0.14)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing)
             }
         }.ignoresSafeArea()
     }
@@ -203,15 +225,15 @@ private struct BrandActionStyle: ViewModifier {
 extension View {
     @ViewBuilder func pointerCursor() -> some View {
         #if os(macOS)
-        onHover { hovering in
-            if hovering {
-                NSCursor.pointingHand.set()
-            } else {
-                NSCursor.arrow.set()
+            onHover { hovering in
+                if hovering {
+                    NSCursor.pointingHand.set()
+                } else {
+                    NSCursor.arrow.set()
+                }
             }
-        }
         #else
-        self
+            self
         #endif
     }
 

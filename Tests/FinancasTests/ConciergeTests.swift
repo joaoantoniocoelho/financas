@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import Financas
 
 final class ConciergeTests: XCTestCase {
@@ -21,15 +22,27 @@ final class ConciergeTests: XCTestCase {
     }
 
     func testInsightPutsPendingBillsFirst() {
-        XCTAssertEqual(Concierge.insight(pendingCount: 2, pendingTotal: 480, salaryDays: 5, hidden: false), "Há 2 contas pendentes, somando \(AppFormat.money(480)).")
-        XCTAssertEqual(Concierge.insight(pendingCount: 1, pendingTotal: 90, salaryDays: nil, hidden: false), "Há 1 conta pendente, de \(AppFormat.money(90)).")
-        XCTAssertEqual(Concierge.insight(pendingCount: 2, pendingTotal: 480, salaryDays: 5, hidden: true), "Há 2 contas pendentes este mês.")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 2, pendingTotal: 480, salaryDays: 5, hidden: false),
+            "Há 2 contas pendentes, somando \(AppFormat.money(480)).")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 1, pendingTotal: 90, salaryDays: nil, hidden: false),
+            "Há 1 conta pendente, de \(AppFormat.money(90)).")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 2, pendingTotal: 480, salaryDays: 5, hidden: true),
+            "Há 2 contas pendentes este mês.")
     }
 
     func testInsightFallsBackToSalaryThenAllClear() {
-        XCTAssertEqual(Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 5, hidden: false), "Faltam 5 dias para o salário.")
-        XCTAssertEqual(Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 1, hidden: false), "O salário cai amanhã.")
-        XCTAssertEqual(Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 0, hidden: false), "O salário cai hoje.")
-        XCTAssertEqual(Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: nil, hidden: false), "Tudo em dia por aqui.")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 5, hidden: false),
+            "Faltam 5 dias para o salário.")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 1, hidden: false), "O salário cai amanhã.")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: 0, hidden: false), "O salário cai hoje.")
+        XCTAssertEqual(
+            Concierge.insight(pendingCount: 0, pendingTotal: 0, salaryDays: nil, hidden: false), "Tudo em dia por aqui."
+        )
     }
 }

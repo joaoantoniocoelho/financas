@@ -1,7 +1,10 @@
 import Foundation
 
 enum ExpenseCategories {
-    static let all = ["Moradia", "Carro", "Saúde", "Educação", "Assinaturas", "SaaS / Projetos", "Mercado", "Alimentação fora", "Lazer", "Compras", "Transporte/Uber", "Pets", "Presentes", "Viagens", "Outros"]
+    static let all = [
+        "Moradia", "Carro", "Saúde", "Educação", "Assinaturas", "SaaS / Projetos", "Mercado", "Alimentação fora",
+        "Lazer", "Compras", "Transporte/Uber", "Pets", "Presentes", "Viagens", "Outros",
+    ]
 }
 
 struct ExpenseExtraction: StructuredAITask {
@@ -27,19 +30,23 @@ struct ExpenseExtraction: StructuredAITask {
 
     init(text: String, now: Date = .now, calendar: Calendar = .current) {
         self.text = text
-        payments = Self.matches(#"(?i)\b(?:pix|débito automático|debito automatico|débito|debito|cartão|cartao|crédito|credito|dinheiro|espécie|especie)\b"#, text)
-            .enumerated().map { index, match in
-                let source = (text as NSString).substring(with: match.range)
-                let normalized = source.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
-                let method: PaymentMethod
-                switch normalized {
-                case "cartao", "credito": method = .card
-                case "dinheiro", "especie": method = .cash
-                case "debito automatico": method = .automatic
-                default: method = .pix
-                }
-                return Candidate(id: "p\(index)", source: source, value: method.rawValue)
+        payments = Self.matches(
+            #"(?i)\b(?:pix|débito automático|debito automatico|débito|debito|cartão|cartao|crédito|credito|dinheiro|espécie|especie)\b"#,
+            text
+        )
+        .enumerated().map { index, match in
+            let source = (text as NSString).substring(with: match.range)
+            let normalized = source.folding(
+                options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "pt_BR"))
+            let method: PaymentMethod
+            switch normalized {
+            case "cartao", "credito": method = .card
+            case "dinheiro", "especie": method = .cash
+            case "debito automatico": method = .automatic
+            default: method = .pix
             }
+            return Candidate(id: "p\(index)", source: source, value: method.rawValue)
+        }
         var dateCandidates: [Candidate] = []
         let formatter = DateFormatter()
         formatter.calendar = calendar
@@ -55,27 +62,42 @@ struct ExpenseExtraction: StructuredAITask {
             if let offset = offsets[source.lowercased()] {
                 date = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now))
             } else if source.contains("-") {
-                if let candidate = formatter.date(from: source), formatter.string(from: candidate) == source { date = candidate }
+                if let candidate = formatter.date(from: source), formatter.string(from: candidate) == source {
+                    date = candidate
+                }
             } else {
                 let parts = source.split(separator: "/").compactMap { Int($0) }
                 let year = parts.count == 3 ? parts[2] : calendar.component(.year, from: now)
-                if parts.count >= 2, let candidate = calendar.date(from: DateComponents(year: year, month: parts[1], day: parts[0])),
-                   calendar.component(.month, from: candidate) == parts[1], calendar.component(.day, from: candidate) == parts[0] { date = candidate }
+                if parts.count >= 2,
+                    let candidate = calendar.date(from: DateComponents(year: year, month: parts[1], day: parts[0])),
+                    calendar.component(.month, from: candidate) == parts[1],
+                    calendar.component(.day, from: candidate) == parts[0]
+                {
+                    date = candidate
+                }
             }
-            if let date { dateCandidates.append(Candidate(id: "d\(dateCandidates.count)", source: source, value: formatter.string(from: date))) }
+            if let date {
+                dateCandidates.append(
+                    Candidate(id: "d\(dateCandidates.count)", source: source, value: formatter.string(from: date)))
+            }
         }
         dates = dateCandidates
         amounts = Self.matches(#"(?<![\p{L}\d.,+\-])\d+(?:\.\d{3})*(?:,\d{1,2})?(?!\d|[.,]\d)"#, text)
             .filter { match in !dateMatches.contains { NSIntersectionRange($0.range, match.range).length > 0 } }
             .enumerated().compactMap { index, match in
                 let source = (text as NSString).substring(with: match.range)
-                guard let amount = Decimal(string: source.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "."), locale: Locale(identifier: "en_US_POSIX")), amount > 0 else { return nil }
+                guard
+                    let amount = Decimal(
+                        string: source.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "."),
+                        locale: Locale(identifier: "en_US_POSIX")), amount > 0
+                else { return nil }
                 return Candidate(id: "a\(index)", source: source, value: NSDecimalNumber(decimal: amount).stringValue)
             }
     }
 
     private static func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
-        (try? NSRegularExpression(pattern: pattern).matches(in: text, range: NSRange(text.startIndex..., in: text))) ?? []
+        (try? NSRegularExpression(pattern: pattern).matches(in: text, range: NSRange(text.startIndex..., in: text)))
+            ?? []
     }
 
     var instructions: String {
@@ -97,7 +119,10 @@ struct ExpenseExtraction: StructuredAITask {
             let dates: [Value]
             let payments: [Value]
         }
-        let context = Context(text: text, amounts: amounts.map { .init(id: $0.id, source: $0.source, value: $0.value) }, dates: dates.map { .init(id: $0.id, source: $0.source, value: $0.value) }, payments: payments.map { .init(id: $0.id, source: $0.source, value: $0.value) })
+        let context = Context(
+            text: text, amounts: amounts.map { .init(id: $0.id, source: $0.source, value: $0.value) },
+            dates: dates.map { .init(id: $0.id, source: $0.source, value: $0.value) },
+            payments: payments.map { .init(id: $0.id, source: $0.source, value: $0.value) })
         return String(decoding: try! JSONEncoder().encode(context), as: UTF8.self)
     }
     var schema: [String: Any] {
@@ -106,19 +131,30 @@ struct ExpenseExtraction: StructuredAITask {
             "category": ["type": "string", "enum": ExpenseCategories.all],
             "amountID": ["type": "string", "enum": [""] + amounts.map(\.id)],
             "dateID": ["type": "string", "enum": [""] + dates.map(\.id)],
-            "payment": ["type": "string", "enum": [""] + Set(payments.map(\.value)).sorted()]
+            "payment": ["type": "string", "enum": [""] + Set(payments.map(\.value)).sorted()],
         ]
-        return ["type": "object", "additionalProperties": false, "required": ["expenses"], "properties": [
-            "expenses": ["type": "array", "maxItems": 30, "items": ["type": "object", "additionalProperties": false, "required": Array(fields.keys).sorted(), "properties": fields]]
-        ]]
+        return [
+            "type": "object", "additionalProperties": false, "required": ["expenses"],
+            "properties": [
+                "expenses": [
+                    "type": "array", "maxItems": 30,
+                    "items": [
+                        "type": "object", "additionalProperties": false, "required": Array(fields.keys).sorted(),
+                        "properties": fields,
+                    ],
+                ]
+            ],
+        ]
     }
     func validate(_ output: Output) throws {
-        guard output.expenses.count <= 30, output.expenses.allSatisfy({ item in
-            !item.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && item.description.count <= 200 &&
-            ExpenseCategories.all.contains(item.category) &&
-            (item.amountID.isEmpty || amounts.contains { $0.id == item.amountID }) &&
-            (item.dateID.isEmpty || dates.contains { $0.id == item.dateID }) &&
-            (item.payment.isEmpty || payments.contains { $0.value == item.payment })
-        }) else { throw OllamaClientError.server("A IA retornou dados inválidos. Tente descrever os gastos novamente.") }
+        guard output.expenses.count <= 30,
+            output.expenses.allSatisfy({ item in
+                !item.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    && item.description.count <= 200 && ExpenseCategories.all.contains(item.category)
+                    && (item.amountID.isEmpty || amounts.contains { $0.id == item.amountID })
+                    && (item.dateID.isEmpty || dates.contains { $0.id == item.dateID })
+                    && (item.payment.isEmpty || payments.contains { $0.value == item.payment })
+            })
+        else { throw OllamaClientError.server("A IA retornou dados inválidos. Tente descrever os gastos novamente.") }
     }
 }

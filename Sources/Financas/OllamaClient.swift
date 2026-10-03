@@ -23,7 +23,8 @@ enum OllamaClientError: LocalizedError {
             if available.isEmpty {
                 return "O modelo \"\(model)\" não está disponível no servidor. Nenhum modelo foi encontrado."
             }
-            return "O modelo \"\(model)\" não está disponível. Modelos encontrados: \(available.joined(separator: ", "))."
+            return
+                "O modelo \"\(model)\" não está disponível. Modelos encontrados: \(available.joined(separator: ", "))."
         case .emptyResponse:
             return "O Ollama respondeu, mas não retornou texto."
         }
@@ -55,8 +56,11 @@ struct OllamaClient {
         }
 
         do {
-            let result = try await AIService(transport: OllamaTransport(session: session)).run(AIConnectionCheck(), configuration: AIConfiguration(baseURL: baseURL, model: model))
-            return OllamaConnectionResult(model: model, availableModels: availableModels, response: result.status, latency: Date().timeIntervalSince(startedAt))
+            let result = try await AIService(transport: OllamaTransport(session: session)).run(
+                AIConnectionCheck(), configuration: AIConfiguration(baseURL: baseURL, model: model))
+            return OllamaConnectionResult(
+                model: model, availableModels: availableModels, response: result.status,
+                latency: Date().timeIntervalSince(startedAt))
         } catch {
             throw map(error, baseURL: baseURL)
         }
@@ -70,7 +74,8 @@ struct OllamaClient {
 
     private func validate(response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            let serverMessage = (try? JSONDecoder().decode(ErrorResponse.self, from: data).error) ?? "respondeu com erro HTTP"
+            let serverMessage =
+                (try? JSONDecoder().decode(ErrorResponse.self, from: data).error) ?? "respondeu com erro HTTP"
             throw OllamaClientError.server("O Ollama \(serverMessage).")
         }
     }
@@ -78,7 +83,8 @@ struct OllamaClient {
     private func normalizedURL(_ value: String) -> URL? {
         var text = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.hasSuffix("/") { text.append("/") }
-        guard let url = URL(string: text), let scheme = url.scheme, ["http", "https"].contains(scheme), url.host != nil else { return nil }
+        guard let url = URL(string: text), let scheme = url.scheme, ["http", "https"].contains(scheme), url.host != nil
+        else { return nil }
         return url
     }
 
@@ -88,12 +94,14 @@ struct OllamaClient {
             switch urlError.code {
             case .timedOut: return OllamaClientError.server("a conexão com \(baseURL) excedeu o tempo limite")
             case .cannotConnectToHost, .networkConnectionLost, .notConnectedToInternet:
-                return OllamaClientError.server("não foi possível conectar a \(baseURL) (\(urlError.localizedDescription))")
+                return OllamaClientError.server(
+                    "não foi possível conectar a \(baseURL) (\(urlError.localizedDescription))")
             default: break
             }
         }
         let nsError = error as NSError
-        return OllamaClientError.server("não foi possível testar o Ollama: \(error.localizedDescription) [\(nsError.domain):\(nsError.code)]")
+        return OllamaClientError.server(
+            "não foi possível testar o Ollama: \(error.localizedDescription) [\(nsError.domain):\(nsError.code)]")
     }
 
     private struct TagsResponse: Decodable { let models: [Model] }

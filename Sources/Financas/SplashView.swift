@@ -10,9 +10,9 @@ struct SplashView: View {
     /// Debug builds only: FINANCAS_SPLASH_AT=1.2 holds the splash at that moment, for screenshots.
     static let frozenTime: TimeInterval? = {
         #if DEBUG
-        ProcessInfo.processInfo.environment["FINANCAS_SPLASH_AT"].flatMap(TimeInterval.init)
+            ProcessInfo.processInfo.environment["FINANCAS_SPLASH_AT"].flatMap(TimeInterval.init)
         #else
-        nil
+            nil
         #endif
     }()
 
@@ -22,7 +22,9 @@ struct SplashView: View {
 
     var body: some View {
         TimelineView(.animation(paused: reduceMotion)) { context in
-            let t = Self.frozenTime ?? (reduceMotion ? Self.duration : start.map { context.date.timeIntervalSince($0) } ?? 0)
+            let t =
+                Self.frozenTime
+                ?? (reduceMotion ? Self.duration : start.map { context.date.timeIntervalSince($0) } ?? 0)
             GeometryReader { geometry in
                 let plot = SplashPlot(size: geometry.size)
                 ZStack(alignment: .bottomLeading) {
@@ -35,7 +37,7 @@ struct SplashView: View {
             }
         }
         #if os(iOS)
-        .ignoresSafeArea()
+            .ignoresSafeArea()
         #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
@@ -47,7 +49,10 @@ struct SplashView: View {
         ZStack {
             Self.launchBackground
             LinearGradient(
-                colors: [Color(red: 0.012, green: 0.10, blue: 0.075), Color(red: 0.015, green: 0.20, blue: 0.14), Color(red: 0.008, green: 0.12, blue: 0.085)],
+                colors: [
+                    Color(red: 0.012, green: 0.10, blue: 0.075), Color(red: 0.015, green: 0.20, blue: 0.14),
+                    Color(red: 0.008, green: 0.12, blue: 0.085),
+                ],
                 startPoint: .top, endPoint: .bottom
             )
             .opacity(Splash.phase(t, 0, 0.5))
@@ -134,7 +139,7 @@ struct SplashPlot {
         self.radius = radius
         self.center = center
         self.baseline = baseline
-        markStroke = radius * MarkGeometry.stroke / MarkGeometry.radius // the icon's proportions
+        markStroke = radius * MarkGeometry.stroke / MarkGeometry.radius  // the icon's proportions
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "pt_BR")
@@ -157,13 +162,17 @@ struct SplashPlot {
         for step in 1...24 {
             let s = CGFloat(step) / 24
             let a = pow(1 - s, 3), b = 3 * pow(1 - s, 2) * s, c = 3 * (1 - s) * s * s, d = s * s * s
-            points.append(CGPoint(x: a * last.x + b * c1.x + c * c2.x + d * bottom.x,
-                                  y: a * last.y + b * c1.y + c * c2.y + d * bottom.y))
+            points.append(
+                CGPoint(
+                    x: a * last.x + b * c1.x + c * c2.x + d * bottom.x,
+                    y: a * last.y + b * c1.y + c * c2.y + d * bottom.y))
         }
         line = points
         var total: CGFloat = 0
         lengths = points.indices.map { index in
-            if index > 0 { total += hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y) }
+            if index > 0 {
+                total += hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y)
+            }
             return total
         }
     }
@@ -171,7 +180,8 @@ struct SplashPlot {
     /// Converts a point from the mark's 100-unit artboard (see MarkGeometry).
     private func icon(_ p: CGPoint) -> CGPoint {
         let scale = radius / MarkGeometry.radius
-        return CGPoint(x: center.x + (p.x - MarkGeometry.center.x) * scale, y: center.y + (p.y - MarkGeometry.center.y) * scale)
+        return CGPoint(
+            x: center.x + (p.x - MarkGeometry.center.x) * scale, y: center.y + (p.y - MarkGeometry.center.y) * scale)
     }
 
     private func arc(from: Double, to: Double) -> Path {
@@ -194,8 +204,10 @@ struct SplashPlot {
             if lengths[index] <= target { result.append(line[index]); continue }
             let segment = lengths[index] - lengths[index - 1]
             let f = segment > 0 ? (target - lengths[index - 1]) / segment : 0
-            result.append(CGPoint(x: line[index - 1].x + (line[index].x - line[index - 1].x) * f,
-                                  y: line[index - 1].y + (line[index].y - line[index - 1].y) * f))
+            result.append(
+                CGPoint(
+                    x: line[index - 1].x + (line[index].x - line[index - 1].x) * f,
+                    y: line[index - 1].y + (line[index].y - line[index - 1].y) * f))
             break
         }
         return result
@@ -217,19 +229,30 @@ struct SplashPlot {
         var row = 0
         while y > top {
             let reach = size.width * gridProgress
-            context.stroke(Path { $0.move(to: CGPoint(x: 0, y: y)); $0.addLine(to: CGPoint(x: reach, y: y)) },
-                           with: .color(mint.opacity(row == 0 ? 0.16 : 0.055)), lineWidth: row == 0 ? 1 : 0.6)
+            context.stroke(
+                Path {
+                    $0.move(to: CGPoint(x: 0, y: y)); $0.addLine(to: CGPoint(x: reach, y: y))
+                },
+                with: .color(mint.opacity(row == 0 ? 0.16 : 0.055)), lineWidth: row == 0 ? 1 : 0.6)
             y -= 38; row += 1
         }
 
         // Month ticks and labels, lit as the line passes.
         for (index, month) in months.enumerated() {
             let lit = Splash.phase(chartProgress, share(ofMonth: index) - 0.04, share(ofMonth: index) + 0.06)
-            context.stroke(Path { $0.move(to: CGPoint(x: month.point.x, y: baseline)); $0.addLine(to: CGPoint(x: month.point.x, y: baseline + 6)) },
-                           with: .color(mint.opacity(0.25 * gridProgress)), lineWidth: 1)
-            context.stroke(Path { $0.move(to: month.point); $0.addLine(to: CGPoint(x: month.point.x, y: baseline)) },
-                           with: .color(mint.opacity(0.07 * lit)), style: StrokeStyle(lineWidth: 1, dash: [2, 4]))
-            var label = context.resolve(Text(month.label).font(.system(size: 9, weight: .semibold, design: .monospaced)))
+            context.stroke(
+                Path {
+                    $0.move(to: CGPoint(x: month.point.x, y: baseline));
+                    $0.addLine(to: CGPoint(x: month.point.x, y: baseline + 6))
+                },
+                with: .color(mint.opacity(0.25 * gridProgress)), lineWidth: 1)
+            context.stroke(
+                Path {
+                    $0.move(to: month.point); $0.addLine(to: CGPoint(x: month.point.x, y: baseline))
+                },
+                with: .color(mint.opacity(0.07 * lit)), style: StrokeStyle(lineWidth: 1, dash: [2, 4]))
+            var label = context.resolve(
+                Text(month.label).font(.system(size: 9, weight: .semibold, design: .monospaced)))
             label.shading = .color(month.isCurrent ? mint.opacity(lit) : .white.opacity(0.18 + 0.22 * lit))
             context.draw(label, at: CGPoint(x: month.point.x, y: baseline + 18))
         }
@@ -244,14 +267,20 @@ struct SplashPlot {
             area.addLine(to: CGPoint(x: drawn[drawn.count - 1].x, y: baseline))
             area.closeSubpath()
             // Fades back as the mark forms, so it doesn't leave a column under the ring.
-            context.fill(area, with: .linearGradient(Gradient(colors: [mint.opacity(0.16 * (1 - 0.65 * ring)), mint.opacity(0)]),
-                                                     startPoint: CGPoint(x: 0, y: center.y), endPoint: CGPoint(x: 0, y: baseline)))
+            context.fill(
+                area,
+                with: .linearGradient(
+                    Gradient(colors: [mint.opacity(0.16 * (1 - 0.65 * ring)), mint.opacity(0)]),
+                    startPoint: CGPoint(x: 0, y: center.y), endPoint: CGPoint(x: 0, y: baseline)))
             let path = Path { $0.addLines(drawn) }
             context.drawLayer { layer in
                 layer.addFilter(.blur(radius: 6))
-                layer.stroke(path, with: .color(mint.opacity(0.45)), style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                layer.stroke(
+                    path, with: .color(mint.opacity(0.45)),
+                    style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
             }
-            context.stroke(path, with: .color(mint), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+            context.stroke(
+                path, with: .color(mint), style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
         }
 
         // A dot pops on each month as the line reaches it; the current month keeps a halo.
@@ -261,12 +290,19 @@ struct SplashPlot {
             guard pop > 0 else { continue }
             let overshoot = 1 + sin(pop * .pi) * 0.5
             let r = 3.2 * overshoot
-            context.fill(Path(ellipseIn: CGRect(x: month.point.x - r, y: month.point.y - r, width: r * 2, height: r * 2)), with: .color(mint))
-            context.fill(Path(ellipseIn: CGRect(x: month.point.x - 1.3, y: month.point.y - 1.3, width: 2.6, height: 2.6)), with: .color(SplashView.launchBackground))
+            context.fill(
+                Path(ellipseIn: CGRect(x: month.point.x - r, y: month.point.y - r, width: r * 2, height: r * 2)),
+                with: .color(mint))
+            context.fill(
+                Path(ellipseIn: CGRect(x: month.point.x - 1.3, y: month.point.y - 1.3, width: 2.6, height: 2.6)),
+                with: .color(SplashView.launchBackground))
             if month.isCurrent {
                 let halo = 7 + 10 * Splash.easeOut(pop)
-                context.stroke(Path(ellipseIn: CGRect(x: month.point.x - halo, y: month.point.y - halo, width: halo * 2, height: halo * 2)),
-                               with: .color(mint.opacity(0.35 * (1 - pop) + 0.12)), lineWidth: 1)
+                context.stroke(
+                    Path(
+                        ellipseIn: CGRect(
+                            x: month.point.x - halo, y: month.point.y - halo, width: halo * 2, height: halo * 2)),
+                    with: .color(mint.opacity(0.35 * (1 - pop) + 0.12)), lineWidth: 1)
             }
         }
 
@@ -274,8 +310,11 @@ struct SplashPlot {
         let glow = Splash.phase(t, Self.glow.0, Self.glow.1)
         if glow > 0 {
             let r = radius * (1.4 + 0.9 * glow)
-            context.fill(Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)),
-                         with: .radialGradient(Gradient(colors: [mint.opacity(0.2 * glow), mint.opacity(0)]), center: center, startRadius: 0, endRadius: r))
+            context.fill(
+                Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2)),
+                with: .radialGradient(
+                    Gradient(colors: [mint.opacity(0.2 * glow), mint.opacity(0)]), center: center, startRadius: 0,
+                    endRadius: r))
         }
 
         // The line splits at the ring's lowest point and wraps both ways, swelling to the icon's weight.
@@ -291,7 +330,9 @@ struct SplashPlot {
         if inner > 0 {
             let points = MarkGeometry.chart.map(icon)
             var segments: [CGFloat] = []
-            for index in 1..<points.count { segments.append(hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y)) }
+            for index in 1..<points.count {
+                segments.append(hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y))
+            }
             var remaining = segments.reduce(0, +) * inner
             let path = Path { path in
                 path.move(to: points[0])
@@ -299,21 +340,27 @@ struct SplashPlot {
                     let length = segments[index - 1]
                     if remaining >= length { path.addLine(to: points[index]); remaining -= length; continue }
                     let f = remaining / length
-                    path.addLine(to: CGPoint(x: points[index - 1].x + (points[index].x - points[index - 1].x) * f, y: points[index - 1].y + (points[index].y - points[index - 1].y) * f))
+                    path.addLine(
+                        to: CGPoint(
+                            x: points[index - 1].x + (points[index].x - points[index - 1].x) * f,
+                            y: points[index - 1].y + (points[index].y - points[index - 1].y) * f))
                     break
                 }
             }
-            context.stroke(path, with: .color(mint), style: StrokeStyle(lineWidth: markStroke, lineCap: .round, lineJoin: .round))
+            context.stroke(
+                path, with: .color(mint), style: StrokeStyle(lineWidth: markStroke, lineCap: .round, lineJoin: .round))
         }
         let dot = Splash.linear(t, Self.arrow.1 - 0.05, Self.arrow.1 + 0.25)
         if dot > 0 {
             let tip = icon(MarkGeometry.chart[MarkGeometry.chart.count - 1])
             let scale = radius / MarkGeometry.radius
             let r = MarkGeometry.dotRadius * scale * (1 + sin(dot * .pi) * 0.45)
-            context.fill(Path(ellipseIn: CGRect(x: tip.x - r, y: tip.y - r, width: r * 2, height: r * 2)), with: .color(mint))
+            context.fill(
+                Path(ellipseIn: CGRect(x: tip.x - r, y: tip.y - r, width: r * 2, height: r * 2)), with: .color(mint))
             let halo = MarkGeometry.haloRadius * scale * (0.6 + 0.4 * Splash.easeOut(dot))
-            context.stroke(Path(ellipseIn: CGRect(x: tip.x - halo, y: tip.y - halo, width: halo * 2, height: halo * 2)),
-                           with: .color(mint.opacity(0.4 * Splash.easeOut(dot))), lineWidth: max(markStroke * 0.35, 1))
+            context.stroke(
+                Path(ellipseIn: CGRect(x: tip.x - halo, y: tip.y - halo, width: halo * 2, height: halo * 2)),
+                with: .color(mint.opacity(0.4 * Splash.easeOut(dot))), lineWidth: max(markStroke * 0.35, 1))
         }
     }
 }

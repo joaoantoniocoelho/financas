@@ -1,4 +1,5 @@
 import XCTest
+
 @testable import Financas
 
 final class AITests: XCTestCase {
@@ -16,7 +17,8 @@ final class AITests: XCTestCase {
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
         do {
-            _ = try await AIService(transport: OllamaTransport(session: session)).run(AIConnectionCheck(), configuration: self.configuration)
+            _ = try await AIService(transport: OllamaTransport(session: session)).run(
+                AIConnectionCheck(), configuration: self.configuration)
             XCTFail("Expected a connection failure")
         } catch {
             XCTAssertTrue(error.localizedDescription.contains("localhost:11434"))
@@ -47,7 +49,8 @@ final class AITests: XCTestCase {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let now = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1))!
-        let task = ExpenseExtraction(text: "Ontem paguei 1.234,56 no pix; em 30/12/2025 gastei 89 no cartão", now: now, calendar: calendar)
+        let task = ExpenseExtraction(
+            text: "Ontem paguei 1.234,56 no pix; em 30/12/2025 gastei 89 no cartão", now: now, calendar: calendar)
         XCTAssertEqual(task.amounts.map(\.value), ["1234.56", "89"])
         XCTAssertEqual(task.dates.map(\.value), ["2025-12-31", "2025-12-30"])
         XCTAssertTrue(task.input.contains("2025-12-31"))
@@ -69,8 +72,10 @@ final class AITests: XCTestCase {
     func testPaymentAliasesAreResolvedBeforeInference() throws {
         let task = ExpenseExtraction(text: "42 no PIX, 89 no crédito e 20 no débito automático")
         XCTAssertEqual(task.payments.map(\.value), ["Débito/PIX", "Cartão", "Débito automático"])
-        let json = #"{"expenses":[{"description":"Almoço","category":"Outros","amountID":"a0","dateID":"","payment":"Dinheiro"}]}"#
-        XCTAssertThrowsError(try task.validate(JSONDecoder().decode(ExpenseExtraction.Output.self, from: Data(json.utf8))))
+        let json =
+            #"{"expenses":[{"description":"Almoço","category":"Outros","amountID":"a0","dateID":"","payment":"Dinheiro"}]}"#
+        XCTAssertThrowsError(
+            try task.validate(JSONDecoder().decode(ExpenseExtraction.Output.self, from: Data(json.utf8))))
     }
 
     func testServiceRejectsUnknownKeysAndInventedCandidateIDs() async throws {
@@ -80,7 +85,7 @@ final class AITests: XCTestCase {
             #"{"expenses":[{"description":"Almoço","category":"Alimentação fora","amountID":"inventado","dateID":"d0","payment":"Débito/PIX"}]}"#,
             #"{"expenses":[{"description":"Almoço","category":"Alimentação fora","amountID":"a0","dateID":"d0","payment":"Débito/PIX","amount":100}]}"#,
             #"{"expenses":null}"#,
-            "Aqui está: {}"
+            "Aqui está: {}",
         ] {
             do {
                 _ = try await AIService(transport: StubTransport(json: json)).run(task, configuration: configuration)
@@ -91,7 +96,8 @@ final class AITests: XCTestCase {
 
     func testServiceAcceptsExplicitMissingInformation() async throws {
         let task = ExpenseExtraction(text: "comprei almoço")
-        let json = #"{"expenses":[{"description":"Almoço","category":"Alimentação fora","amountID":"","dateID":"","payment":""}]}"#
+        let json =
+            #"{"expenses":[{"description":"Almoço","category":"Alimentação fora","amountID":"","dateID":"","payment":""}]}"#
         let output = try await AIService(transport: StubTransport(json: json)).run(task, configuration: configuration)
         XCTAssertEqual(output.expenses.count, 1)
         XCTAssertEqual(output.expenses[0].amountID, "")
@@ -102,7 +108,8 @@ final class AITests: XCTestCase {
         sessionConfiguration.protocolClasses = [AIURLProtocol.self]
         let session = URLSession(configuration: sessionConfiguration)
         defer { session.invalidateAndCancel() }
-        let output = try await AIService(transport: OllamaTransport(session: session)).run(AIConnectionCheck(), configuration: configuration)
+        let output = try await AIService(transport: OllamaTransport(session: session)).run(
+            AIConnectionCheck(), configuration: configuration)
         XCTAssertEqual(output.status, "conexao ativa")
     }
 
@@ -112,19 +119,29 @@ final class AITests: XCTestCase {
         let database = try Database(url: directory.appendingPathComponent("test.sqlite"))
         let id = try database.createMonth(year: 2026, month: 9, initialBalance: 1000)
         func expense(_ method: PaymentMethod, amount: Double, monthID: Int64, included: Bool = false) -> Expense {
-            Expense(id: 0, monthID: monthID, recurringID: nil, date: .now, description: "Teste", category: "Outros", amount: amount, paymentMethod: method, status: .pending, competenceYear: nil, competenceMonth: nil, notes: "", isRecurring: false, includedInInitialBalance: included)
+            Expense(
+                id: 0, monthID: monthID, recurringID: nil, date: .now, description: "Teste", category: "Outros",
+                amount: amount, paymentMethod: method, status: .pending, competenceYear: nil, competenceMonth: nil,
+                notes: "", isRecurring: false, includedInInitialBalance: included)
         }
-        try database.saveExpenseBatch([expense(.pix, amount: 42.90, monthID: id), expense(.card, amount: 89, monthID: id), expense(.cash, amount: 10, monthID: id, included: true)])
+        try database.saveExpenseBatch([
+            expense(.pix, amount: 42.90, monthID: id), expense(.card, amount: 89, monthID: id),
+            expense(.cash, amount: 10, monthID: id, included: true),
+        ])
         XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance, 957.10, accuracy: 0.001)
         XCTAssertEqual(try database.expenses(monthID: id).filter { $0.status == .invoice }.count, 1)
-        XCTAssertThrowsError(try database.saveExpenseBatch([expense(.pix, amount: 50, monthID: id), expense(.pix, amount: 1, monthID: -999)]))
+        XCTAssertThrowsError(
+            try database.saveExpenseBatch([
+                expense(.pix, amount: 50, monthID: id), expense(.pix, amount: 1, monthID: -999),
+            ]))
         XCTAssertEqual(try database.expenses(monthID: id).count, 3)
         XCTAssertEqual(try XCTUnwrap(database.months().first).currentBalance, 957.10, accuracy: 0.001)
     }
 
     @MainActor
     func testReviewRequiresMissingFieldsAndRejectsInvalidMoney() {
-        var draft = AIExpenseView.Draft(description: "Almoço", amount: "42,90", category: "Outros", payment: "", date: nil)
+        var draft = AIExpenseView.Draft(
+            description: "Almoço", amount: "42,90", category: "Outros", payment: "", date: nil)
         XCTAssertFalse(draft.valid)
         draft.payment = PaymentMethod.pix.rawValue
         draft.date = .now
@@ -138,7 +155,9 @@ final class AITests: XCTestCase {
 
 private struct StubTransport: AITransport {
     let json: String
-    func response(configuration: AIConfiguration, instructions: String, input: String, schema: [String: Any]) async throws -> Data { Data(json.utf8) }
+    func response(configuration: AIConfiguration, instructions: String, input: String, schema: [String: Any])
+        async throws -> Data
+    { Data(json.utf8) }
 }
 
 private final class OfflineAIURLProtocol: URLProtocol {

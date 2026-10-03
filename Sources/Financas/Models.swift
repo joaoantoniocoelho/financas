@@ -235,14 +235,15 @@ enum AppFormat {
         return currency.string(from: NSNumber(value: value)) ?? "R$ 0,00"
     }
 
-    private static let foreignFormatters: [ForeignCurrency: NumberFormatter] = Dictionary(uniqueKeysWithValues: ForeignCurrency.allCases.map { code in
-        let f = NumberFormatter()
-        f.numberStyle = .currency
-        f.locale = Locale(identifier: "pt_BR")
-        f.currencyCode = code.rawValue
-        f.currencySymbol = code.symbol
-        return (code, f)
-    })
+    private static let foreignFormatters: [ForeignCurrency: NumberFormatter] = Dictionary(
+        uniqueKeysWithValues: ForeignCurrency.allCases.map { code in
+            let f = NumberFormatter()
+            f.numberStyle = .currency
+            f.locale = Locale(identifier: "pt_BR")
+            f.currencyCode = code.rawValue
+            f.currencySymbol = code.symbol
+            return (code, f)
+        })
 
     /// A balance in its own currency, or in reais when `currency` is nil.
     static func money(_ value: Double, in currency: ForeignCurrency?, hidden: Bool = false) -> String {
