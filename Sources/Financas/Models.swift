@@ -78,6 +78,15 @@ struct RecurringExpense: Identifiable {
     var paymentMethod: PaymentMethod
     var notes: String
     var active: Bool
+
+    /// The day it falls on in the given month; a due day past the month's end lands on its last day.
+    func dueDate(in month: BudgetMonth, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date? {
+        guard let dueDay, let start = calendar.date(from: DateComponents(year: month.year, month: month.month)),
+            let range = calendar.range(of: .day, in: .month, for: start)
+        else { return nil }
+        return calendar.date(
+            from: DateComponents(year: month.year, month: month.month, day: min(max(dueDay, 1), range.count)))
+    }
 }
 
 struct Expense: Identifiable {
@@ -257,5 +266,12 @@ enum AppFormat {
         f.locale = Locale(identifier: "pt_BR")
         f.dateStyle = .short
         return f
+    }()
+
+    static let dayMonth: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "pt_BR")
+        formatter.dateFormat = "dd/MM"
+        return formatter
     }()
 }

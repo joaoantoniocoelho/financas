@@ -115,6 +115,7 @@ struct SettingsView: View {
                         }
                     }.padding(compact ? 0 : 8)
                 }
+                FixedDueDatesSection()
                 GroupBox("Meta de investimento") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(
@@ -294,6 +295,39 @@ struct SettingsView: View {
                 ollamaState = .failure(error.localizedDescription)
             }
         }
+    }
+}
+
+/// Edits only the due day of each active fixed expense, without opening its full editor.
+private struct FixedDueDatesSection: View {
+    @EnvironmentObject private var store: AppStore
+    @Environment(\.compactLayout) private var compact
+
+    var body: some View {
+        GroupBox("Datas dos gastos fixos") {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Dia do mês em que cada gasto fixo vence. Em meses mais curtos, ele cai no último dia.")
+                    .foregroundStyle(.secondary).padding(.bottom, 4)
+                ForEach(store.recurring.filter(\.active)) { item in
+                    HStack {
+                        Text(item.description); Spacer()
+                        Picker(item.description, selection: dueDayBinding(item)) {
+                            Text("Sem data").tag(Int?.none)
+                            ForEach(1...31, id: \.self) { Text("Dia \($0)").tag(Int?.some($0)) }
+                        }.labelsHidden().pointerCursor().fixedSize()
+                    }
+                    .padding(.vertical, 6)
+                }
+            }.padding(compact ? 0 : 8)
+        }
+    }
+
+    private func dueDayBinding(_ item: RecurringExpense) -> Binding<Int?> {
+        Binding(
+            get: { item.dueDay },
+            set: {
+                var copy = item; copy.dueDay = $0; store.save(copy)
+            })
     }
 }
 

@@ -326,7 +326,7 @@ struct ExpensesView: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.description).fontWeight(.medium).lineLimit(1)
-                    Text(item.paymentMethod.rawValue).font(.caption).foregroundStyle(.secondary)
+                    Text("\(item.paymentMethod.rawValue)\(dueDay(item))").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 4) {
@@ -378,10 +378,10 @@ struct ExpensesView: View {
         return " • competência \(String(format: "%02d", m))/\(y)"
     }
     private func dueDay(_ item: Expense) -> String {
-        guard mode == .fixed, let recurringID = item.recurringID,
-            let day = store.recurring.first(where: { $0.id == recurringID })?.dueDay
+        guard mode == .fixed, let month = store.selectedMonth, let recurringID = item.recurringID,
+            let date = store.recurring.first(where: { $0.id == recurringID })?.dueDate(in: month)
         else { return "" }
-        return " • cobrança dia \(day)"
+        return " • vence \(AppFormat.dayMonth.string(from: date))"
     }
 }
 
