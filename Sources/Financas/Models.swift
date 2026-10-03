@@ -80,7 +80,8 @@ struct RecurringExpense: Identifiable {
     var active: Bool
 
     /// The day it falls on in the given month; a due day past the month's end lands on its last day.
-    func dueDate(in month: BudgetMonth, calendar: Calendar = Calendar(identifier: .gregorian)) -> Date? {
+    func dueDate(in month: BudgetMonth) -> Date? {
+        let calendar = Calendar(identifier: .gregorian)
         guard let dueDay, let start = calendar.date(from: DateComponents(year: month.year, month: month.month)),
             let range = calendar.range(of: .day, in: .month, for: start)
         else { return nil }
