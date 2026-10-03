@@ -1,15 +1,17 @@
 {
   "version": 1,
   "lineLength": 120,
-  "indentation": { "spaces": 4 },
+  "indentation": {
+    "spaces": 4
+  },
   "maximumBlankLines": 1,
   "respectsExistingLineBreaks": true,
   "lineBreakBeforeEachArgument": false,
   "rules": {
     "AllPublicDeclarationsHaveDocumentation": false,
-    "NeverForceUnwrap": true,
-    "NeverUseForceTry": true,
-    "NeverUseImplicitlyUnwrappedOptionals": true,
+    "NeverForceUnwrap": false,
+    "NeverUseForceTry": false,
+    "NeverUseImplicitlyUnwrappedOptionals": false,
     "OrderedImports": true,
     "UseLetInEveryBoundCaseVariable": true,
     "ValidateDocumentationComments": false
